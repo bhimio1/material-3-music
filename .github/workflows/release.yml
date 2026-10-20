@@ -38,7 +38,7 @@ jobs:
           mkdir -p "$dir"
           cp "target/release/$BIN" "$dir/"
           cp "packaging/$APP_ID.desktop" "$dir/"
-          cp assets/fonts/LICENSE-Inter.txt "$dir/"
+          cp LICENSE assets/fonts/LICENSE-Inter.txt "$dir/"
           tar czf "$dir.tar.gz" "$dir"
           sha256sum "$dir.tar.gz" > "$dir.tar.gz.sha256"
       - uses: softprops/action-gh-release@v2

@@ -128,4 +128,8 @@ Run the tests with `cargo test`.
 
 For development without a network, `M3_MUSIC_FIXTURES=fixtures` answers API requests from the JSON in `fixtures/`, and `M3_MUSIC_PAGE` opens a page at start (`home`, `search:<query>`, `detail:<id>`, `liked`, `local`, `downloads`, `settings`, `now`).
 
+## License
+
+MIT, see [LICENSE](LICENSE).
+
 Fonts: Inter (SIL OFL 1.1, see `assets/fonts/LICENSE-Inter.txt`). Icons: Material Symbols, via `egui_material_icons`.

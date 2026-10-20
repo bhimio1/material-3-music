@@ -3,6 +3,7 @@ name = "material_3_music"
 version = "0.1.0"
 edition = "2021"
 description = "A Material 3 YouTube Music client and local music player, built with egui"
+license = "MIT"
 
 [[bin]]
 name = "m3-music"

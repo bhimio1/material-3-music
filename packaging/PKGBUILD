@@ -5,7 +5,7 @@ pkgrel=1
 pkgdesc="Material 3 YouTube Music client and local music player"
 arch=('x86_64' 'aarch64')
 url="https://github.com/bhimio1/material-3-music"
-license=('unknown')  # TODO: pick a license
+license=('MIT')
 depends=('libxkbcommon' 'wayland' 'libglvnd' 'mpv' 'yt-dlp' 'xdg-utils')
 makedepends=('cargo' 'git')
 optdepends=('ffmpeg: converting and tagging downloads (yt-dlp)')
@@ -42,5 +42,6 @@ package() {
   cd "$pkgname"
   install -Dm755 target/release/m3-music "$pkgdir/usr/bin/m3-music"
   install -Dm644 packaging/material_3_music.desktop "$pkgdir/usr/share/applications/material_3_music.desktop"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
   install -Dm644 assets/fonts/LICENSE-Inter.txt "$pkgdir/usr/share/licenses/$pkgname/LICENSE-Inter.txt"
 }
