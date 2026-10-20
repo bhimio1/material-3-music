@@ -1,0 +1,24 @@
+# Maintainer: bhimio1
+# Template: the release workflow fills in @PKGVER@ and @SHA256@ and publishes
+# this to the AUR as material-3-music-bin.
+pkgname=material-3-music-bin
+pkgver=@PKGVER@
+pkgrel=1
+pkgdesc="Material 3 YouTube Music client and local music player"
+arch=('x86_64')
+url="https://github.com/bhimio1/material-3-music"
+license=('MIT')
+depends=('libxkbcommon' 'wayland' 'libglvnd' 'mpv' 'yt-dlp' 'xdg-utils')
+optdepends=('ffmpeg: converting and tagging downloads (yt-dlp)')
+provides=('material-3-music')
+conflicts=('material-3-music' 'material-3-music-git')
+source=("$pkgname-$pkgver.tar.gz::$url/releases/download/v$pkgver/m3-music-x86_64-linux.tar.gz")
+sha256sums=('@SHA256@')
+
+package() {
+  cd "m3-music-x86_64-linux"
+  install -Dm755 m3-music "$pkgdir/usr/bin/m3-music"
+  install -Dm644 material_3_music.desktop "$pkgdir/usr/share/applications/material_3_music.desktop"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 LICENSE-Inter.txt "$pkgdir/usr/share/licenses/$pkgname/LICENSE-Inter.txt"
+}

@@ -10,7 +10,7 @@ depends=('libxkbcommon' 'wayland' 'libglvnd' 'mpv' 'yt-dlp' 'xdg-utils')
 makedepends=('cargo' 'git')
 optdepends=('ffmpeg: converting and tagging downloads (yt-dlp)')
 provides=('material-3-music')
-conflicts=('material-3-music')
+conflicts=('material-3-music' 'material-3-music-bin')
 source=("$pkgname::git+$url.git")
 sha256sums=('SKIP')
 

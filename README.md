@@ -77,6 +77,12 @@ Runtime requirements: **mpv** and **yt-dlp**. The app offers to install them if 
 
 Prebuilt x86_64 binaries are attached to [releases](https://github.com/bhimio1/material-3-music/releases) (push a `v*` tag to publish one).
 
+From the AUR, prebuilt or built from source:
+
+```sh
+paru -S material-3-music-bin   # or material-3-music-git
+```
+
 On Arch, with the included PKGBUILD:
 
 ```sh
