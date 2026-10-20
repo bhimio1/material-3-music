@@ -56,6 +56,9 @@ pub struct Record {
 
 pub struct Downloads {
     ctx: egui::Context,
+    /// yt-dlp (overridable for tests).
+    program: String,
+    records_file: PathBuf,
     pub jobs: Vec<Job>,
     /// Finished downloads by videoId.
     pub records: BTreeMap<String, Record>,
@@ -166,7 +169,11 @@ fn parse_line(line: &str) -> Option<Update> {
 
 impl Downloads {
     pub fn new(ctx: egui::Context) -> Self {
-        let records: BTreeMap<String, Record> = std::fs::read_to_string(records_path())
+        Self::with(ctx, "yt-dlp".into(), records_path())
+    }
+
+    fn with(ctx: egui::Context, program: String, records_file: PathBuf) -> Self {
+        let records: BTreeMap<String, Record> = std::fs::read_to_string(&records_file)
             .ok()
             .and_then(|s| serde_json::from_str(&s).ok())
             .unwrap_or_default();
@@ -176,6 +183,8 @@ impl Downloads {
         ));
         Self {
             ctx,
+            program,
+            records_file,
             jobs: Vec::new(),
             records,
             index,
@@ -185,10 +194,10 @@ impl Downloads {
 
     fn save(&self) {
         if let Ok(json) = serde_json::to_vec_pretty(&self.records) {
-            if let Some(dir) = records_path().parent() {
+            if let Some(dir) = self.records_file.parent() {
                 let _ = std::fs::create_dir_all(dir);
             }
-            let _ = std::fs::write(records_path(), json);
+            let _ = std::fs::write(&self.records_file, json);
         }
     }
 
@@ -295,8 +304,9 @@ impl Downloads {
         };
         let slot = job.child.clone();
         let ctx = self.ctx.clone();
+        let program = self.program.clone();
         std::thread::spawn(move || {
-            let spawned = Command::new("yt-dlp")
+            let spawned = Command::new(&program)
                 .args(&args)
                 .stdin(Stdio::null())
                 .stdout(Stdio::piped())
@@ -453,6 +463,49 @@ mod tests {
         assert!(args.contains(&"mp3".to_string()));
         assert_eq!(args.last().unwrap(), "https://music.youtube.com/watch?v=abc");
         assert!(args.contains(&"/m/Artist/Singles/Song 100%%.%(ext)s".to_string()));
+    }
+
+    /// Runs a fake yt-dlp that prints progress and writes the file.
+    #[test]
+    fn download_end_to_end() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let stub = dir.path().join("yt-dlp");
+        std::fs::write(
+            &stub,
+            "#!/bin/sh\nfor a; do out=\"$a\"; [ \"$prev\" = -o ] && tmpl=\"$a\"; prev=\"$a\"; done\n\
+             f=$(echo \"$tmpl\" | sed 's/%(ext)s/opus/; s/%%/%/g')\n\
+             echo 'M3P  10.0%|1.0MiB/s|00:02'\necho 'M3P 100.0%|1.0MiB/s|00:00'\necho '[ExtractAudio] Destination: x'\n\
+             mkdir -p \"$(dirname \"$f\")\" && echo audio > \"$f\" && echo \"M3FILE $f\"\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let mut d = Downloads::with(egui::Context::default(), stub.to_string_lossy().into(), dir.path().join("downloads.json"));
+        let config = Config {
+            download_dir: dir.path().join("music").to_string_lossy().into(),
+            ..Default::default()
+        };
+        let t = Track {
+            video_id: Some("abcdefghijk".into()),
+            title: "Song".into(),
+            artists: vec![Link::new("Artist", None)],
+            ..Default::default()
+        };
+        assert_eq!(d.enqueue(&[t.clone(), t.clone()]), 1);
+        let started = std::time::Instant::now();
+        while !d.is_downloaded("abcdefghijk") && started.elapsed() < std::time::Duration::from_secs(10) {
+            d.poll(&config, None);
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        let path = d.index.lock().unwrap().get("abcdefghijk").cloned().unwrap();
+        assert_eq!(path, dir.path().join("music/Artist/Singles/Song.opus"));
+        assert!(path.is_file());
+        // Reloads from disk; removing deletes the file and tidies folders.
+        let mut again = Downloads::with(egui::Context::default(), "yt-dlp".into(), dir.path().join("downloads.json"));
+        assert!(again.is_downloaded("abcdefghijk"));
+        again.remove("abcdefghijk").unwrap();
+        assert!(!path.exists());
+        assert!(!dir.path().join("music/Artist").exists());
     }
 
     #[test]

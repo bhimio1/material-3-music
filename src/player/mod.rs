@@ -44,10 +44,12 @@ pub struct Player {
     notices: Vec<Notice>,
     /// Bumped whenever the current track changes (for MPRIS and art).
     pub generation: u64,
+    /// Extra mpv options from the config.
+    pub mpv_args: Vec<String>,
 }
 
 impl Player {
-    pub fn new(ctx: egui::Context, client: Client, downloads: SharedIndex, volume: f64) -> Self {
+    pub fn new(ctx: egui::Context, client: Client, downloads: SharedIndex, volume: f64, mpv_args: Vec<String>) -> Self {
         Self {
             ctx,
             client,
@@ -67,6 +69,7 @@ impl Player {
             },
             radio: Task::default(),
             radio_play: false,
+            mpv_args,
             notices: Vec::new(),
             generation: 0,
         }
@@ -90,7 +93,7 @@ impl Player {
         }
         if self.mpv.is_none() {
             let cookies = crate::yt::auth::sync_cookie_file(self.client.auth().as_ref());
-            match mpv::Mpv::spawn(self.ctx.clone(), cookies, self.volume) {
+            match mpv::Mpv::spawn(self.ctx.clone(), cookies, self.volume, &self.mpv_args) {
                 Ok(m) => self.mpv = Some(m),
                 Err(e) => {
                     self.notices.push(Notice::Error(format!("{e}. Install mpv and yt-dlp to play music.")));
@@ -107,6 +110,7 @@ impl Player {
         let was = self.state.time_pos;
         let playing = self.current().is_some();
         self.mpv = None;
+        self.state.idle = true;
         if playing {
             self.state.paused = true;
             self.state.time_pos = was;
@@ -408,10 +412,13 @@ impl Player {
                                 "Couldn't play “{title}”: {}",
                                 error.unwrap_or_else(|| "unknown error".into())
                             )));
-                            if self.index.is_some_and(|i| i + 1 < self.queue.len()) {
+                            // A broken audio device fails every song: don't skip through the queue.
+                            let systemic = reason_is_systemic(self.notices.last());
+                            if !systemic && self.index.is_some_and(|i| i + 1 < self.queue.len()) {
                                 self.next();
                             } else {
                                 self.state.idle = true;
+                                self.state.paused = true;
                             }
                         }
                         _ => {}
@@ -460,6 +467,10 @@ impl Player {
     }
 }
 
+fn reason_is_systemic(notice: Option<&Notice>) -> bool {
+    matches!(notice, Some(Notice::Error(e)) if e.contains("audio output") || e.contains("audio device"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -473,7 +484,7 @@ mod tests {
     }
 
     fn player() -> Player {
-        let mut p = Player::new(egui::Context::default(), Client::new(), Default::default(), 80.0);
+        let mut p = Player::new(egui::Context::default(), Client::new(), Default::default(), 80.0, Vec::new());
         // Never spawn mpv in tests.
         p.queue = vec![t("a"), t("b"), t("c"), t("d")];
         p.index = Some(1);

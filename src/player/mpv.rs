@@ -40,7 +40,7 @@ pub struct Mpv {
 const OBSERVED: &[&str] = &["time-pos", "duration", "pause", "volume", "idle-active", "paused-for-cache"];
 
 impl Mpv {
-    pub fn spawn(ctx: egui::Context, cookies: Option<PathBuf>, volume: f64) -> Result<Self> {
+    pub fn spawn(ctx: egui::Context, cookies: Option<PathBuf>, volume: f64, extra: &[String]) -> Result<Self> {
         let dir = dirs::runtime_dir().unwrap_or_else(std::env::temp_dir);
         let socket = dir.join(format!("m3-music-{}.sock", std::process::id()));
         let _ = std::fs::remove_file(&socket);
@@ -64,6 +64,7 @@ impl Mpv {
         if let Some(c) = cookies {
             cmd.arg(format!("--ytdl-raw-options=cookies={}", c.display()));
         }
+        cmd.args(extra);
         let mut child = cmd.spawn().context("couldn't start mpv")?;
 
         let started = Instant::now();

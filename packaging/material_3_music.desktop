@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Music
+GenericName=Music Player
+Comment=YouTube Music and your local music, in Material You
+Exec=m3-music %U
+Icon=multimedia-audio-player
+Terminal=false
+Categories=AudioVideo;Audio;Player;Music;
+MimeType=audio/mpeg;audio/flac;audio/ogg;audio/opus;audio/mp4;audio/x-wav;audio/aac;
+Keywords=music;youtube;player;songs;playlist;mp3;flac;
+StartupWMClass=material_3_music

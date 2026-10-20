@@ -122,7 +122,7 @@ pub fn show(ui: &mut Ui, app: &mut App) {
                     ui.separator();
                     row(ui, "Sync every", "Your library also syncs when the app starts.", |ui| {
                         let mut m = config.sync_minutes;
-                        let r = ui.add(egui::Slider::new(&mut m, 0..=120).suffix(" min").custom_formatter(|v, _| if v == 0.0 { "Off".into() } else { format!("{v:.0} min") }));
+                        let r = ui.add(egui::Slider::new(&mut m, 0..=120).custom_formatter(|v, _| if v == 0.0 { "Off".into() } else { format!("{v:.0} min") }));
                         if r.changed() {
                             config.sync_minutes = m;
                         }
@@ -132,6 +132,7 @@ pub fn show(ui: &mut Ui, app: &mut App) {
                 None => {
                     common::note(ui, "Sign in to sync your playlists, liked songs, albums, subscriptions and history, and to like songs and edit playlists from here. Search and playback work without an account.");
                     // OAuth.
+                    ui.add_space(4.0);
                     ui.label(widgets::title_text("Sign in with Google", 15.0).color(p.on_surface));
                     match &st.signin {
                         SignIn::Waiting { code, .. } => {
@@ -281,6 +282,17 @@ pub fn show(ui: &mut Ui, app: &mut App) {
         card(ui, "Playback", |ui| {
             row(ui, "Autoplay", "When the queue ends, keep playing related songs.", |ui| {
                 changed |= switch(ui, &mut config.autoplay).changed();
+            });
+            ui.separator();
+            row(ui, "mpv options", "Extra options for the audio engine, separated by spaces (e.g. --af=loudnorm). Changing them pauses playback; press play to continue.", |ui| {
+                let id = egui::Id::unique("mpv-args-text");
+                let mut text = ui.data(|d| d.get_temp::<String>(id)).unwrap_or_else(|| config.mpv_args.join(" "));
+                let r = ui.add(egui::TextEdit::singleline(&mut text).desired_width(220.0).hint_text("--ao=pipewire"));
+                if r.lost_focus() {
+                    config.mpv_args = text.split_whitespace().map(str::to_string).collect();
+                    changed = true;
+                }
+                ui.data_mut(|d| d.insert_temp(id, text));
             });
             common::require(ui, &mut actions, "mpv", "mpv", "Music plays through mpv.");
         });

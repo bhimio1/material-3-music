@@ -67,6 +67,8 @@ pub struct Config {
     pub oauth_client_id: String,
     pub oauth_client_secret: String,
     pub terminal: String,
+    /// Extra options passed to mpv (e.g. `--ao=pipewire`, `--af=loudnorm`).
+    pub mpv_args: Vec<String>,
 }
 
 pub fn music_dir() -> PathBuf {
@@ -91,6 +93,7 @@ impl Default for Config {
             oauth_client_id: String::new(),
             oauth_client_secret: String::new(),
             terminal: String::new(),
+            mpv_args: Vec::new(),
         }
     }
 }

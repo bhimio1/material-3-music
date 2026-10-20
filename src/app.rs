@@ -84,7 +84,7 @@ impl App {
         let config = Config::load();
         let client = Client::new();
         let downloads = Downloads::new(ctx.clone());
-        let mut player = Player::new(ctx.clone(), client.clone(), downloads.index.clone(), config.volume);
+        let mut player = Player::new(ctx.clone(), client.clone(), downloads.index.clone(), config.volume, config.mpv_args.clone());
         player.autoplay = config.autoplay;
         let thumbs = Thumbs::new(ctx.clone(), client.agent().clone(), client.fixtures());
         let local = Local::new(ctx.clone(), config.folders());
@@ -114,6 +114,27 @@ impl App {
         };
         app.apply_theme();
         app.open_args(open);
+        // Development / screenshots: start on a given page.
+        if let Ok(page) = std::env::var("M3_MUSIC_PAGE") {
+            app.page = match page.split_once(':') {
+                Some(("search", q)) => {
+                    app.pages.search.set_query(q.to_string());
+                    Page::Search
+                }
+                Some(("detail", id)) => Page::Detail(id.to_string()),
+                _ => match page.as_str() {
+                    "search" => Page::Search,
+                    "playlists" => Page::Library(crate::ui::LibTab::Playlists),
+                    "liked" => Page::Library(crate::ui::LibTab::Liked),
+                    "albums" => Page::Library(crate::ui::LibTab::Albums),
+                    "local" => Page::Local,
+                    "downloads" => Page::Downloads,
+                    "settings" => Page::Settings,
+                    "now" => Page::NowPlaying,
+                    _ => Page::Home,
+                },
+            };
+        }
         app
     }
 
@@ -504,6 +525,11 @@ impl App {
                     self.toast(format!("Couldn't save preferences: {e}"), ToastKind::Error);
                 }
                 self.player.autoplay = self.config.autoplay;
+                if self.player.mpv_args != self.config.mpv_args {
+                    self.player.mpv_args = self.config.mpv_args.clone();
+                    // mpv only reads options at startup.
+                    self.player.reset_engine();
+                }
                 self.local.change_folders(self.config.folders());
                 self.art_seed = None;
                 self.apply_theme();
