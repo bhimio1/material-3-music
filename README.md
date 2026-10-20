@@ -75,6 +75,8 @@ Credentials are stored in `~/.local/share/m3-music/auth.json`, readable only by 
 
 Runtime requirements: **mpv** and **yt-dlp**. The app offers to install them if they're missing.
 
+Prebuilt x86_64 binaries are attached to [releases](https://github.com/bhimio1/material-3-music/releases) (push a `v*` tag to publish one).
+
 On Arch, with the included PKGBUILD:
 
 ```sh

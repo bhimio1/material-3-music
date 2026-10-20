@@ -1,0 +1,49 @@
+name: Release
+
+# Builds a Linux binary and attaches it to a GitHub release. Push a tag like
+# v0.2.0, or run the workflow by hand with a tag name. end4-pC's installer
+# downloads the latest release's tarball.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to create or update (e.g. v0.1.0)"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  BIN: m3-music
+  APP_ID: material_3_music
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev libgl1-mesa-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Test
+        run: cargo test --locked
+      - name: Build
+        run: cargo build --locked --release
+      - name: Package
+        run: |
+          dir="$BIN-x86_64-linux"
+          mkdir -p "$dir"
+          cp "target/release/$BIN" "$dir/"
+          cp "packaging/$APP_ID.desktop" "$dir/"
+          cp assets/fonts/LICENSE-Inter.txt "$dir/"
+          tar czf "$dir.tar.gz" "$dir"
+          sha256sum "$dir.tar.gz" > "$dir.tar.gz.sha256"
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          files: |
+            ${{ env.BIN }}-x86_64-linux.tar.gz
+            ${{ env.BIN }}-x86_64-linux.tar.gz.sha256
