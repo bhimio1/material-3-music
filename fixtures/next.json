@@ -1,0 +1,561 @@
+{
+ "responseContext": {},
+ "contents": {
+  "singleColumnMusicWatchNextResultsRenderer": {
+   "tabbedRenderer": {
+    "watchNextTabbedResultsRenderer": {
+     "tabs": [
+      {
+       "tabRenderer": {
+        "title": "Up next",
+        "content": {
+         "musicQueueRenderer": {
+          "content": {
+           "playlistPanelRenderer": {
+            "contents": [
+             {
+              "playlistPanelVideoRenderer": {
+               "title": {
+                "runs": [
+                 {
+                  "text": "Northern Lights"
+                 }
+                ]
+               },
+               "longBylineText": {
+                "runs": [
+                 {
+                  "text": "Aurora Vale",
+                  "navigationEndpoint": {
+                   "clickTrackingParams": "x",
+                   "browseEndpoint": {
+                    "browseId": "UCaurora1111111111111111",
+                    "browseEndpointContextSupportedConfigs": {
+                     "browseEndpointContextMusicConfig": {
+                      "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                     }
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "text": " \u2022 "
+                 },
+                 {
+                  "text": "Polar Skies",
+                  "navigationEndpoint": {
+                   "browseEndpoint": {
+                    "browseId": "MPREb_polar001",
+                    "browseEndpointContextSupportedConfigs": {
+                     "browseEndpointContextMusicConfig": {
+                      "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                     }
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "text": " \u2022 "
+                 },
+                 {
+                  "text": "2024"
+                 }
+                ]
+               },
+               "thumbnail": {
+                "thumbnails": [
+                 {
+                  "url": "https://i.ytimg.com/vi/dQw4w9WgXcQ/sddefault.jpg",
+                  "width": 640,
+                  "height": 480
+                 },
+                 {
+                  "url": "https://lh3.googleusercontent.com/art_dQw4w9WgXcQ=w60-h60-l90-rj",
+                  "width": 60,
+                  "height": 60
+                 }
+                ]
+               },
+               "lengthText": {
+                "runs": [
+                 {
+                  "text": "3:41"
+                 }
+                ]
+               },
+               "videoId": "dQw4w9WgXcQ",
+               "navigationEndpoint": {
+                "watchEndpoint": {
+                 "videoId": "dQw4w9WgXcQ",
+                 "watchEndpointMusicSupportedConfigs": {
+                  "watchEndpointMusicConfig": {
+                   "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                  }
+                 },
+                 "playlistId": "RDAMVMdQw4w9WgXcQ"
+                }
+               }
+              }
+             },
+             {
+              "playlistPanelVideoRenderer": {
+               "title": {
+                "runs": [
+                 {
+                  "text": "Glass Harbour"
+                 }
+                ]
+               },
+               "longBylineText": {
+                "runs": [
+                 {
+                  "text": "Lumen",
+                  "navigationEndpoint": {
+                   "clickTrackingParams": "x",
+                   "browseEndpoint": {
+                    "browseId": "UClumen22222222222222222",
+                    "browseEndpointContextSupportedConfigs": {
+                     "browseEndpointContextMusicConfig": {
+                      "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                     }
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "text": " \u2022 "
+                 },
+                 {
+                  "text": "Tidal Rooms",
+                  "navigationEndpoint": {
+                   "browseEndpoint": {
+                    "browseId": "MPREb_tidal002",
+                    "browseEndpointContextSupportedConfigs": {
+                     "browseEndpointContextMusicConfig": {
+                      "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                     }
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "text": " \u2022 "
+                 },
+                 {
+                  "text": "2024"
+                 }
+                ]
+               },
+               "thumbnail": {
+                "thumbnails": [
+                 {
+                  "url": "https://i.ytimg.com/vi/a1b2c3d4e5f/sddefault.jpg",
+                  "width": 640,
+                  "height": 480
+                 },
+                 {
+                  "url": "https://lh3.googleusercontent.com/art_a1b2c3d4e5f=w60-h60-l90-rj",
+                  "width": 60,
+                  "height": 60
+                 }
+                ]
+               },
+               "lengthText": {
+                "runs": [
+                 {
+                  "text": "4:05"
+                 }
+                ]
+               },
+               "videoId": "a1b2c3d4e5f",
+               "navigationEndpoint": {
+                "watchEndpoint": {
+                 "videoId": "a1b2c3d4e5f",
+                 "watchEndpointMusicSupportedConfigs": {
+                  "watchEndpointMusicConfig": {
+                   "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                  }
+                 },
+                 "playlistId": "RDAMVMa1b2c3d4e5f"
+                }
+               }
+              }
+             },
+             {
+              "playlistPanelVideoRenderer": {
+               "title": {
+                "runs": [
+                 {
+                  "text": "Paper Moons"
+                 }
+                ]
+               },
+               "longBylineText": {
+                "runs": [
+                 {
+                  "text": "Kai Rivers",
+                  "navigationEndpoint": {
+                   "clickTrackingParams": "x",
+                   "browseEndpoint": {
+                    "browseId": "UCkai333333333333333333",
+                    "browseEndpointContextSupportedConfigs": {
+                     "browseEndpointContextMusicConfig": {
+                      "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                     }
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "text": " \u2022 "
+                 },
+                 {
+                  "text": "Paper Moons",
+                  "navigationEndpoint": {
+                   "browseEndpoint": {
+                    "browseId": "MPREb_paper003",
+                    "browseEndpointContextSupportedConfigs": {
+                     "browseEndpointContextMusicConfig": {
+                      "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                     }
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "text": " \u2022 "
+                 },
+                 {
+                  "text": "2024"
+                 }
+                ]
+               },
+               "thumbnail": {
+                "thumbnails": [
+                 {
+                  "url": "https://i.ytimg.com/vi/k9j8h7g6f5d/sddefault.jpg",
+                  "width": 640,
+                  "height": 480
+                 },
+                 {
+                  "url": "https://lh3.googleusercontent.com/art_k9j8h7g6f5d=w60-h60-l90-rj",
+                  "width": 60,
+                  "height": 60
+                 }
+                ]
+               },
+               "lengthText": {
+                "runs": [
+                 {
+                  "text": "2:58"
+                 }
+                ]
+               },
+               "videoId": "k9j8h7g6f5d",
+               "navigationEndpoint": {
+                "watchEndpoint": {
+                 "videoId": "k9j8h7g6f5d",
+                 "watchEndpointMusicSupportedConfigs": {
+                  "watchEndpointMusicConfig": {
+                   "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                  }
+                 },
+                 "playlistId": "RDAMVMk9j8h7g6f5d"
+                }
+               }
+              }
+             },
+             {
+              "playlistPanelVideoRenderer": {
+               "title": {
+                "runs": [
+                 {
+                  "text": "Midnight Transit"
+                 }
+                ]
+               },
+               "longBylineText": {
+                "runs": [
+                 {
+                  "text": "Echo Park",
+                  "navigationEndpoint": {
+                   "clickTrackingParams": "x",
+                   "browseEndpoint": {
+                    "browseId": "UCecho55555555555555555",
+                    "browseEndpointContextSupportedConfigs": {
+                     "browseEndpointContextMusicConfig": {
+                      "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                     }
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "text": " \u2022 "
+                 },
+                 {
+                  "text": "Night Lines",
+                  "navigationEndpoint": {
+                   "browseEndpoint": {
+                    "browseId": "MPREb_night004",
+                    "browseEndpointContextSupportedConfigs": {
+                     "browseEndpointContextMusicConfig": {
+                      "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                     }
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "text": " \u2022 "
+                 },
+                 {
+                  "text": "2024"
+                 }
+                ]
+               },
+               "thumbnail": {
+                "thumbnails": [
+                 {
+                  "url": "https://i.ytimg.com/vi/z1x2c3v4b5n/sddefault.jpg",
+                  "width": 640,
+                  "height": 480
+                 },
+                 {
+                  "url": "https://lh3.googleusercontent.com/art_z1x2c3v4b5n=w60-h60-l90-rj",
+                  "width": 60,
+                  "height": 60
+                 }
+                ]
+               },
+               "lengthText": {
+                "runs": [
+                 {
+                  "text": "3:27"
+                 }
+                ]
+               },
+               "videoId": "z1x2c3v4b5n",
+               "navigationEndpoint": {
+                "watchEndpoint": {
+                 "videoId": "z1x2c3v4b5n",
+                 "watchEndpointMusicSupportedConfigs": {
+                  "watchEndpointMusicConfig": {
+                   "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                  }
+                 },
+                 "playlistId": "RDAMVMz1x2c3v4b5n"
+                }
+               }
+              }
+             },
+             {
+              "playlistPanelVideoRenderer": {
+               "title": {
+                "runs": [
+                 {
+                  "text": "Satellites"
+                 }
+                ]
+               },
+               "longBylineText": {
+                "runs": [
+                 {
+                  "text": "Nova",
+                  "navigationEndpoint": {
+                   "clickTrackingParams": "x",
+                   "browseEndpoint": {
+                    "browseId": "UCnova44444444444444444",
+                    "browseEndpointContextSupportedConfigs": {
+                     "browseEndpointContextMusicConfig": {
+                      "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                     }
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "text": " \u2022 "
+                 },
+                 {
+                  "text": "Orbit",
+                  "navigationEndpoint": {
+                   "browseEndpoint": {
+                    "browseId": "MPREb_orbit005",
+                    "browseEndpointContextSupportedConfigs": {
+                     "browseEndpointContextMusicConfig": {
+                      "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                     }
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "text": " \u2022 "
+                 },
+                 {
+                  "text": "2024"
+                 }
+                ]
+               },
+               "thumbnail": {
+                "thumbnails": [
+                 {
+                  "url": "https://i.ytimg.com/vi/q1w2e3r4t5y/sddefault.jpg",
+                  "width": 640,
+                  "height": 480
+                 },
+                 {
+                  "url": "https://lh3.googleusercontent.com/art_q1w2e3r4t5y=w60-h60-l90-rj",
+                  "width": 60,
+                  "height": 60
+                 }
+                ]
+               },
+               "lengthText": {
+                "runs": [
+                 {
+                  "text": "3:12"
+                 }
+                ]
+               },
+               "videoId": "q1w2e3r4t5y",
+               "navigationEndpoint": {
+                "watchEndpoint": {
+                 "videoId": "q1w2e3r4t5y",
+                 "watchEndpointMusicSupportedConfigs": {
+                  "watchEndpointMusicConfig": {
+                   "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                  }
+                 },
+                 "playlistId": "RDAMVMq1w2e3r4t5y"
+                }
+               }
+              }
+             },
+             {
+              "playlistPanelVideoWrapperRenderer": {
+               "primaryRenderer": {
+                "playlistPanelVideoRenderer": {
+                 "title": {
+                  "runs": [
+                   {
+                    "text": "Golden Hour Drive"
+                   }
+                  ]
+                 },
+                 "longBylineText": {
+                  "runs": [
+                   {
+                    "text": "Lumen",
+                    "navigationEndpoint": {
+                     "clickTrackingParams": "x",
+                     "browseEndpoint": {
+                      "browseId": "UClumen22222222222222222",
+                      "browseEndpointContextSupportedConfigs": {
+                       "browseEndpointContextMusicConfig": {
+                        "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                       }
+                      }
+                     }
+                    }
+                   },
+                   {
+                    "text": " \u2022 "
+                   },
+                   {
+                    "text": "Tidal Rooms",
+                    "navigationEndpoint": {
+                     "browseEndpoint": {
+                      "browseId": "MPREb_tidal002",
+                      "browseEndpointContextSupportedConfigs": {
+                       "browseEndpointContextMusicConfig": {
+                        "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                       }
+                      }
+                     }
+                    }
+                   },
+                   {
+                    "text": " \u2022 "
+                   },
+                   {
+                    "text": "2023"
+                   }
+                  ]
+                 },
+                 "thumbnail": {
+                  "thumbnails": [
+                   {
+                    "url": "https://i.ytimg.com/vi/p0o9i8u7y6t/sddefault.jpg",
+                    "width": 640,
+                    "height": 480
+                   },
+                   {
+                    "url": "https://lh3.googleusercontent.com/art_p0o9i8u7y6t=w60-h60-l90-rj",
+                    "width": 60,
+                    "height": 60
+                   }
+                  ]
+                 },
+                 "lengthText": {
+                  "runs": [
+                   {
+                    "text": "3:50"
+                   }
+                  ]
+                 },
+                 "videoId": "p0o9i8u7y6t",
+                 "navigationEndpoint": {
+                  "watchEndpoint": {
+                   "videoId": "p0o9i8u7y6t",
+                   "watchEndpointMusicSupportedConfigs": {
+                    "watchEndpointMusicConfig": {
+                     "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                    }
+                   },
+                   "playlistId": "RDAMVMp0o9i8u7y6t"
+                  }
+                 }
+                }
+               }
+              }
+             }
+            ]
+           }
+          }
+         }
+        }
+       }
+      },
+      {
+       "tabRenderer": {
+        "title": "Lyrics",
+        "endpoint": {
+         "browseEndpoint": {
+          "browseId": "MPLYt_northern",
+          "browseEndpointContextSupportedConfigs": {
+           "browseEndpointContextMusicConfig": {
+            "pageType": "MUSIC_PAGE_TYPE_TRACK_LYRICS"
+           }
+          }
+         }
+        }
+       }
+      },
+      {
+       "tabRenderer": {
+        "title": "Related",
+        "endpoint": {
+         "browseEndpoint": {
+          "browseId": "MPTRt_northern"
+         }
+        }
+       }
+      }
+     ]
+    }
+   }
+  }
+ }
+}

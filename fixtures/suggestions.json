@@ -1,0 +1,62 @@
+{
+ "responseContext": {},
+ "contents": [
+  {
+   "searchSuggestionsSectionRenderer": {
+    "contents": [
+     {
+      "historySuggestionRenderer": {
+       "suggestion": {
+        "runs": [
+         {
+          "text": "aurora vale"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "searchSuggestionRenderer": {
+       "suggestion": {
+        "runs": [
+         {
+          "text": "aurora",
+          "bold": true
+         },
+         {
+          "text": " vale northern lights"
+         }
+        ]
+       },
+       "navigationEndpoint": {
+        "searchEndpoint": {
+         "query": "aurora vale northern lights"
+        }
+       }
+      }
+     },
+     {
+      "searchSuggestionRenderer": {
+       "suggestion": {
+        "runs": [
+         {
+          "text": "aurora",
+          "bold": true
+         },
+         {
+          "text": " borealis"
+         }
+        ]
+       },
+       "navigationEndpoint": {
+        "searchEndpoint": {
+         "query": "aurora borealis"
+        }
+       }
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

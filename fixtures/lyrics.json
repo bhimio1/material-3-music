@@ -1,0 +1,27 @@
+{
+ "responseContext": {},
+ "contents": {
+  "sectionListRenderer": {
+   "contents": [
+    {
+     "musicDescriptionShelfRenderer": {
+      "description": {
+       "runs": [
+        {
+         "text": "Under the northern lights we drift\nSlow as the snow, quiet and swift\n\nHold on to the colour, hold on to the sky\nNorthern lights, northern lights"
+        }
+       ]
+      },
+      "footer": {
+       "runs": [
+        {
+         "text": "Source: LyricFind"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  }
+ }
+}
