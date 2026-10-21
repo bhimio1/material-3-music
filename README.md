@@ -3,6 +3,7 @@
 A YouTube Music client and local music player for Linux, built with [egui](https://github.com/emilk/egui) and themed with Material You. It looks and behaves like the [Material 3 File Manager](https://github.com/bhimio1/material-3-file-manager-rust) and [Material 3 Settings](https://github.com/bhimio1/material-3-settings), and on an end-4 / end4-pC desktop it takes its colors from your wallpaper.
 
 ![Home](docs/screenshot-home.png)
+![Artist](docs/screenshot-artist.png)
 ![Playlist](docs/screenshot-playlist.png)
 ![Now playing](docs/screenshot-now-playing.png)
 ![Colors from the album art](docs/screenshot-album-colors.png)
@@ -10,7 +11,7 @@ A YouTube Music client and local music player for Linux, built with [egui](https
 ## Features
 
 **YouTube Music**
-- Home shelves (quick picks, mixes, listen again), search with suggestions and Songs / Videos / Albums / Artists / Playlists filters.
+- Home shelves (quick picks, mixes, listen again), search with suggestions and the filters YouTube Music offers for each search (such as Songs, Videos, Albums, Artists, Community playlists, Podcasts), and podcast shows and episodes.
 - Album, playlist and artist pages with Play, Shuffle, Radio and Download. Long playlists load as you scroll.
 - Lyrics, and "Start radio" from any song. When the queue runs out, related songs keep playing (Autoplay, can be turned off).
 
@@ -19,7 +20,7 @@ A YouTube Music client and local music player for Linux, built with [egui](https
 - Your library (playlists, liked songs, albums, subscribed artists and history) is synced when the app starts and every 30 minutes, or with **Sync now**.
 - The library is cached on disk, so it shows instantly and offline. If one section fails to sync, its last good copy is kept.
 - Changes go to your account straight away and show in the app immediately. If YouTube Music refuses one, it's undone and you get a message. This covers liking songs, creating playlists, and adding songs to or removing them from your playlists.
-- Search and playback work without an account.
+- Search and playback work without an account. On some networks (VPNs, servers) YouTube asks yt-dlp to confirm you're not a bot; signing in with your browser session fixes that.
 
 **Local files**
 - Scans your music folders (`~/Music` by default; add more in Settings) and reads tags and embedded cover art with [lofty](https://github.com/Serial-ATA/lofty-rs).
