@@ -1,14 +1,15 @@
 //! Album, playlist and artist pages.
 
-use super::{scroll, widgets};
+use super::scroll;
+use material_3_ui::widgets;
 use crate::app::App;
-use crate::sys::task::Task;
-use crate::ui::common;
-use crate::ui::tracks::{self, menu_item, ListOpts};
+use material_3_ui::sys::task::Task;
+use material_3_ui::common;
+use crate::ui::tracks::{self, ListOpts};
 use crate::ui::{art, Action};
 use crate::yt::model::{Collection, Detail, Item, Kind, Track};
 use egui::{vec2, RichText, Ui};
-use egui_material_icons::icons::*;
+use material_3_ui::icons::icons::*;
 
 #[derive(Default)]
 pub struct State {
@@ -142,24 +143,20 @@ pub fn show(ui: &mut Ui, app: &mut App, id: &str) {
                     }
                     let more = widgets::icon_button(ui, ICON_MORE_VERT, "More", true);
                     egui::Popup::menu(&more).show(|ui| {
-                        if menu_item(ui, ICON_QUEUE_PLAY_NEXT, "Play next").clicked() {
+                        if widgets::menu_item(ui, Some(ICON_QUEUE_PLAY_NEXT), "Play next", "", false) {
                             v.push(Action::PlayNext(d.tracks.clone()));
-                            ui.close();
                         }
-                        if menu_item(ui, ICON_ADD_TO_QUEUE, "Add to queue").clicked() {
+                        if widgets::menu_item(ui, Some(ICON_ADD_TO_QUEUE), "Add to queue", "", false) {
                             v.push(Action::Enqueue(d.tracks.clone()));
-                            ui.close();
                         }
                         if v.client.signed_in() && kind != Kind::Artist {
                             ui.menu_button("Add all to playlist", |ui| {
-                                if menu_item(ui, ICON_ADD, "New playlist…").clicked() {
+                                if widgets::menu_item(ui, Some(ICON_ADD), "New playlist…", "", false) {
                                     v.actions.push(Action::NewPlaylist(d.tracks.clone()));
-                                    ui.close();
                                 }
                                 for pl in v.library.own_playlists() {
-                                    if pl.id != id && menu_item(ui, ICON_QUEUE_MUSIC, &pl.title).clicked() {
+                                    if pl.id != id && widgets::menu_item(ui, Some(ICON_QUEUE_MUSIC), &pl.title, "", false) {
                                         v.actions.push(Action::AddToPlaylist(pl.clone(), d.tracks.clone()));
-                                        ui.close();
                                     }
                                 }
                             });
@@ -169,13 +166,11 @@ pub fn show(ui: &mut Ui, app: &mut App, id: &str) {
                             Kind::Playlist => format!("https://music.youtube.com/playlist?list={}", id.trim_start_matches("VL")),
                             _ => format!("https://music.youtube.com/browse/{id}"),
                         };
-                        if menu_item(ui, ICON_LINK, "Copy link").clicked() {
+                        if widgets::menu_item(ui, Some(ICON_LINK), "Copy link", "", false) {
                             v.push(Action::CopyText(url.clone()));
-                            ui.close();
                         }
-                        if menu_item(ui, ICON_OPEN_IN_NEW, "Open in browser").clicked() {
+                        if widgets::menu_item(ui, Some(ICON_OPEN_IN_NEW), "Open in browser", "", false) {
                             v.push(Action::OpenUrl(url));
-                            ui.close();
                         }
                     });
                 });

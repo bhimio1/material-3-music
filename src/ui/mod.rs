@@ -2,23 +2,17 @@
 //! the app applies after the frame.
 
 pub mod art;
-pub mod common;
 pub mod nowbar;
 pub mod pages;
 pub mod sidebar;
-pub mod toasts;
 pub mod tracks;
-pub mod widgets;
 
 use crate::yt::model::{Collection, Track};
+use material_3_ui::common::{self, Requirement};
+pub use material_3_ui::toasts::ToastKind;
+use std::collections::HashSet;
 use std::path::PathBuf;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ToastKind {
-    Info,
-    Success,
-    Error,
-}
+use std::sync::OnceLock;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LibTab {
@@ -83,3 +77,20 @@ pub enum Action {
 
 pub type Actions = Vec<Action>;
 
+
+/// Check that a command-line tool is available; when it isn't, show
+/// [`common::require`]'s banner, whose Install button pushes
+/// [`Action::Install`]. Returns whether the tool is there.
+pub fn require(ui: &mut egui::Ui, actions: &mut Actions, program: &str, package: &str, purpose: &str) -> bool {
+    if material_3_ui::sys::cmd::exists(program) {
+        return true;
+    }
+    // Only read when something is missing; once it's installed the check
+    // above passes.
+    static INSTALLED: OnceLock<HashSet<String>> = OnceLock::new();
+    let installed = INSTALLED.get_or_init(material_3_ui::sys::arch::installed_packages);
+    if common::require(ui, installed, program, package, purpose) == Requirement::InstallRequested {
+        actions.push(Action::Install(package.to_string()));
+    }
+    false
+}

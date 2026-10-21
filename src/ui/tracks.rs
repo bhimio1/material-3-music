@@ -1,13 +1,14 @@
 //! Track rows, context menus, cards and carousels shared by every page.
 
-use super::{art, widgets, Action, Actions, Page};
+use super::{art, Action, Actions, Page};
+use material_3_ui::widgets;
 use crate::downloads::{Downloads, Status};
 use crate::library::Library;
 use crate::thumbs::Thumbs;
 use crate::yt::model::{format_duration, Collection, Item, Kind, Shelf, Track};
 use crate::yt::Client;
-use egui::{pos2, vec2, Align2, Color32, CornerRadius, FontId, Id, Rect, Response, RichText, Sense, Ui};
-use egui_material_icons::{icons::*, MaterialIcon};
+use egui::{pos2, vec2, Align2, Color32, CornerRadius, FontId, Id, Rect, RichText, Sense, Ui};
+use material_3_ui::icons::{icons::*, MaterialIcon};
 
 /// What pages need from the app, borrowed field by field.
 pub struct View<'a> {
@@ -37,51 +38,36 @@ pub struct ListOpts<'a> {
     pub hide_album: bool,
 }
 
-pub fn menu_item(ui: &mut Ui, icon: MaterialIcon, label: &str) -> Response {
-    let p = widgets::palette(ui);
-    ui.add(
-        egui::Button::new((widgets::icon_text(icon, 18.0).color(p.on_surface_variant), label))
-            .frame(false)
-            .min_size(vec2(220.0, 32.0)),
-    )
-}
-
 /// The ⋮ menu / right-click menu for a song.
 pub fn track_menu(ui: &mut Ui, v: &mut View, track: &Track, opts: ListOpts) {
     let one = || vec![track.clone()];
-    if menu_item(ui, ICON_QUEUE_PLAY_NEXT, "Play next").clicked() {
+    if widgets::menu_item(ui, Some(ICON_QUEUE_PLAY_NEXT), "Play next", "", false) {
         v.push(Action::PlayNext(one()));
-        ui.close();
     }
-    if menu_item(ui, ICON_ADD_TO_QUEUE, "Add to queue").clicked() {
+    if widgets::menu_item(ui, Some(ICON_ADD_TO_QUEUE), "Add to queue", "", false) {
         v.push(Action::Enqueue(one()));
-        ui.close();
     }
     if track.video_id.is_some() {
-        if menu_item(ui, ICON_RADIO, "Start radio").clicked() {
+        if widgets::menu_item(ui, Some(ICON_RADIO), "Start radio", "", false) {
             v.push(Action::StartRadio(track.clone()));
-            ui.close();
         }
         ui.separator();
         if v.client.signed_in() {
             let liked = v.library.is_liked(track);
             let (icon, label) = if liked { (ICON_HEART_BROKEN, "Remove from liked") } else { (ICON_FAVORITE, "Like") };
-            if menu_item(ui, icon, label).clicked() {
+            if widgets::menu_item(ui, Some(icon), label, "", false) {
                 v.push(Action::ToggleLike(track.clone()));
-                ui.close();
             }
             ui.menu_button(
                 (widgets::icon_text(ICON_PLAYLIST_ADD, 18.0).color(widgets::palette(ui).on_surface_variant), "Add to playlist"),
                 |ui| {
-                    if menu_item(ui, ICON_ADD, "New playlist…").clicked() {
+                    if widgets::menu_item(ui, Some(ICON_ADD), "New playlist…", "", false) {
                         v.push(Action::NewPlaylist(one()));
-                        ui.close();
                     }
                     ui.separator();
                     for pl in v.library.own_playlists() {
-                        if menu_item(ui, ICON_QUEUE_MUSIC, &pl.title).clicked() {
+                        if widgets::menu_item(ui, Some(ICON_QUEUE_MUSIC), &pl.title, "", false) {
                             v.actions.push(Action::AddToPlaylist(pl.clone(), one()));
-                            ui.close();
                         }
                     }
                 },
@@ -89,13 +75,11 @@ pub fn track_menu(ui: &mut Ui, v: &mut View, track: &Track, opts: ListOpts) {
         }
         let id = track.video_id.clone().unwrap_or_default();
         if v.downloads.is_downloaded(&id) {
-            if menu_item(ui, ICON_DELETE, "Remove download").clicked() {
+            if widgets::menu_item(ui, Some(ICON_DELETE), "Remove download", "", false) {
                 v.push(Action::RemoveDownload(id.clone()));
-                ui.close();
             }
-        } else if v.downloads.job_for(&id).is_none() && menu_item(ui, ICON_DOWNLOAD, "Download").clicked() {
+        } else if v.downloads.job_for(&id).is_none() && widgets::menu_item(ui, Some(ICON_DOWNLOAD), "Download", "", false) {
             v.push(Action::Download(one()));
-            ui.close();
         }
     }
     let album = track.album.as_ref().and_then(|a| a.id.clone());
@@ -104,35 +88,30 @@ pub fn track_menu(ui: &mut Ui, v: &mut View, track: &Track, opts: ListOpts) {
         ui.separator();
     }
     if let Some(id) = album {
-        if menu_item(ui, ICON_ALBUM, "Go to album").clicked() {
+        if widgets::menu_item(ui, Some(ICON_ALBUM), "Go to album", "", false) {
             v.push(Action::Goto(Page::Detail(id)));
-            ui.close();
         }
     }
     for a in artists {
         let label = if track.artists.len() > 1 { format!("Go to {}", a.name) } else { "Go to artist".into() };
-        if menu_item(ui, ICON_PERSON, &label).clicked() {
+        if widgets::menu_item(ui, Some(ICON_PERSON), &label, "", false) {
             v.push(Action::Goto(Page::Detail(a.id.clone().unwrap_or_default())));
-            ui.close();
         }
     }
     if let (Some(pl), Some(_)) = (opts.playlist_id, &track.set_video_id) {
         ui.separator();
-        if menu_item(ui, ICON_PLAYLIST_REMOVE, "Remove from this playlist").clicked() {
+        if widgets::menu_item(ui, Some(ICON_PLAYLIST_REMOVE), "Remove from this playlist", "", false) {
             v.push(Action::RemoveFromPlaylist(pl.to_string(), track.clone()));
-            ui.close();
         }
     }
     if let Some(url) = track.watch_url() {
-        if menu_item(ui, ICON_LINK, "Copy link").clicked() {
+        if widgets::menu_item(ui, Some(ICON_LINK), "Copy link", "", false) {
             v.push(Action::CopyText(url));
-            ui.close();
         }
     }
     if let Some(path) = &track.path {
-        if menu_item(ui, ICON_FOLDER_OPEN, "Show in folder").clicked() {
+        if widgets::menu_item(ui, Some(ICON_FOLDER_OPEN), "Show in folder", "", false) {
             v.push(Action::OpenPath(path.parent().map(|p| p.to_path_buf()).unwrap_or_default()));
-            ui.close();
         }
     }
 }
@@ -293,23 +272,19 @@ fn collection_icon(kind: Kind) -> MaterialIcon {
 }
 
 pub fn collection_menu(ui: &mut Ui, v: &mut View, c: &Collection) {
-    if menu_item(ui, ICON_PLAY_ARROW, "Play").clicked() {
+    if widgets::menu_item(ui, Some(ICON_PLAY_ARROW), "Play", "", false) {
         v.push(Action::PlayCollection { collection: c.clone(), shuffle: false });
-        ui.close();
     }
-    if menu_item(ui, ICON_SHUFFLE, "Shuffle").clicked() {
+    if widgets::menu_item(ui, Some(ICON_SHUFFLE), "Shuffle", "", false) {
         v.push(Action::PlayCollection { collection: c.clone(), shuffle: true });
-        ui.close();
     }
     // Artists and podcast shows can be huge; download their songs or
     // episodes one by one instead.
-    if !matches!(c.kind, Kind::Artist | Kind::Podcast) && menu_item(ui, ICON_DOWNLOAD, "Download").clicked() {
+    if !matches!(c.kind, Kind::Artist | Kind::Podcast) && widgets::menu_item(ui, Some(ICON_DOWNLOAD), "Download", "", false) {
         v.push(Action::DownloadCollection(c.id.clone()));
-        ui.close();
     }
-    if menu_item(ui, ICON_OPEN_IN_NEW, "Open").clicked() {
+    if widgets::menu_item(ui, Some(ICON_OPEN_IN_NEW), "Open", "", false) {
         v.push(Action::Goto(Page::Detail(c.id.clone())));
-        ui.close();
     }
 }
 

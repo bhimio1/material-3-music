@@ -1,13 +1,14 @@
 //! Music files on this computer: songs, albums and artists.
 
-use super::{scroll, widgets};
+use super::scroll;
+use material_3_ui::widgets;
 use crate::app::App;
-use crate::ui::common;
+use material_3_ui::common;
 use crate::ui::tracks::{self, empty, ListOpts};
 use crate::ui::{art, Action, Page};
 use crate::yt::model::Track;
 use egui::{pos2, vec2, FontId, Id, RichText, Sense, Ui};
-use egui_material_icons::icons::*;
+use material_3_ui::icons::icons::*;
 use std::collections::BTreeMap;
 
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
@@ -97,7 +98,7 @@ pub fn show(ui: &mut Ui, app: &mut App) {
                 }
             });
         });
-        let names: Vec<String> = folders.iter().map(|f| crate::sys::paths::tilde(f)).collect();
+        let names: Vec<String> = folders.iter().map(|f| material_3_ui::sys::paths::tilde(f)).collect();
         ui.label(RichText::new(format!("{} songs from {}", all.len(), names.join(", "))).color(p.on_surface_variant));
         ui.add_space(8.0);
 

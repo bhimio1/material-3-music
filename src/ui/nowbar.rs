@@ -1,11 +1,12 @@
 //! The bottom bar: current song, transport controls, seek, volume.
 
-use super::{art, widgets, Action, Page};
+use super::{art, Action, Page};
+use material_3_ui::widgets;
 use crate::app::App;
 use crate::player::Repeat;
 use crate::yt::model::format_duration;
 use egui::{pos2, vec2, Align2, CornerRadius, FontId, Frame, Id, Rect, Response, Sense, Ui, UiBuilder};
-use egui_material_icons::icons::*;
+use material_3_ui::icons::icons::*;
 
 /// A thin M3 slider. Returns the value while dragging (`live`) or on
 /// release, depending on the caller.

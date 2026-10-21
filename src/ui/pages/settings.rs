@@ -1,20 +1,17 @@
 //! Settings: account (sign-in and sync), library folders, downloads,
 //! playback and appearance.
 
-use super::{scroll, widgets};
 use crate::app::App;
-use crate::config::{AudioFormat, ColorScheme, ThemeSource};
-use crate::sys::task::Task;
-use crate::theme::palette::{parse_hex, to_hex};
-use crate::ui::common::{self, card, row};
-use crate::ui::widgets::{segmented, switch, ButtonKind};
+use crate::config::AudioFormat;
 use crate::ui::{Action, ToastKind};
 use crate::yt::auth::{self, DeviceCode, Poll};
-use egui::{vec2, Color32, CornerRadius, Frame, Margin, RichText, Ui};
-use egui_material_icons::icons::*;
+use egui::{CornerRadius, Frame, Margin, RichText, Ui};
+use material_3_ui::common::{self, card, row};
+use material_3_ui::icons::icons::*;
+use material_3_ui::prefs;
+use material_3_ui::sys::task::Task;
+use material_3_ui::widgets::{self, segmented, switch, ButtonKind};
 use std::time::{Duration, Instant};
-
-const SEED_PRESETS: &[&str] = &["#4285F4", "#6750A4", "#B3261E", "#E8710A", "#1E8E3E", "#00897B", "#C2185B", "#795548", "#607D8B"];
 
 #[derive(Default)]
 enum SignIn {
@@ -36,7 +33,6 @@ pub struct State {
     show_guide: bool,
     browser_input: String,
     new_folder: String,
-    seed_text: Option<String>,
 }
 
 pub fn show(ui: &mut Ui, app: &mut App) {
@@ -45,7 +41,8 @@ pub fn show(ui: &mut Ui, app: &mut App) {
     let mut changed = false;
     let mut signed_in_now: Option<auth::Auth> = None;
     let mut sign_out = false;
-    let theme_file = app.theme_file();
+    let mut theme_changed = false;
+    let theme = &app.theme;
     let st = &mut app.pages.settings;
     let config = &mut app.config;
     let client = app.client.clone();
@@ -96,12 +93,7 @@ pub fn show(ui: &mut Ui, app: &mut App) {
         st.signin = SignIn::Idle;
     }
 
-    scroll(ui, "settings", |ui| {
-        ui.set_max_width(ui.available_width().min(common::PAGE_WIDTH));
-        ui.horizontal(|ui| {
-            widgets::icon(ui, ICON_SETTINGS, 30.0, p.primary);
-            ui.label(RichText::new("Settings").size(28.0).color(p.on_surface));
-        });
+    common::page(ui, ICON_SETTINGS, "Settings", "", |ui| {
 
         // ---------------------------------------------------------- account
         card(ui, "Account", |ui| {
@@ -247,7 +239,7 @@ pub fn show(ui: &mut Ui, app: &mut App) {
             ui.add_space(6.0);
             ui.horizontal(|ui| {
                 ui.add(egui::TextEdit::singleline(&mut st.new_folder).hint_text("~/Music/More").desired_width(320.0));
-                let path = crate::sys::paths::expand(st.new_folder.trim());
+                let path = material_3_ui::sys::paths::expand(st.new_folder.trim());
                 let valid = !st.new_folder.trim().is_empty() && path.is_dir();
                 if widgets::button_enabled(ui, ButtonKind::Tonal, Some(ICON_ADD), "Add folder", valid).clicked() {
                     config.library_folders.push(st.new_folder.trim().to_string());
@@ -267,7 +259,7 @@ pub fn show(ui: &mut Ui, app: &mut App) {
                 changed |= segmented(ui, &mut config.download_format, &[(AudioFormat::Opus, ICON_GRAPHIC_EQ, "Opus"), (AudioFormat::M4a, ICON_GRAPHIC_EQ, "M4A"), (AudioFormat::Mp3, ICON_GRAPHIC_EQ, "MP3")]);
             });
             ui.separator();
-            row(ui, "Download folder", &format!("Songs go in <folder>/<artist>/<album>/. Now: {}", crate::sys::paths::tilde(&config.download_root())), |ui| {
+            row(ui, "Download folder", &format!("Songs go in <folder>/<artist>/<album>/. Now: {}", material_3_ui::sys::paths::tilde(&config.download_root())), |ui| {
                 changed |= ui.add(egui::TextEdit::singleline(&mut config.download_dir).hint_text("~/Music/M3 Music").desired_width(220.0)).lost_focus();
             });
             ui.separator();
@@ -275,7 +267,7 @@ pub fn show(ui: &mut Ui, app: &mut App) {
                 let r = ui.add(egui::Slider::new(&mut config.concurrent_downloads, 1..=6));
                 changed |= r.drag_stopped() || (r.changed() && !r.dragged());
             });
-            common::require(ui, &mut actions, "yt-dlp", "yt-dlp", "Downloads and YouTube playback use yt-dlp.");
+            crate::ui::require(ui, &mut actions, "yt-dlp", "yt-dlp", "Downloads and YouTube playback use yt-dlp.");
         });
 
         // --------------------------------------------------------- playback
@@ -294,55 +286,14 @@ pub fn show(ui: &mut Ui, app: &mut App) {
                 }
                 ui.data_mut(|d| d.insert_temp(id, text));
             });
-            common::require(ui, &mut actions, "mpv", "mpv", "Music plays through mpv.");
+            crate::ui::require(ui, &mut actions, "mpv", "mpv", "Music plays through mpv.");
         });
 
         // ------------------------------------------------------- appearance
-        card(ui, "Appearance", |ui| {
-            let desc = match (config.theme_source, &theme_file) {
-                (ThemeSource::Auto, Some(f)) => format!("Using your desktop's colors from {}.", crate::sys::paths::tilde(f)),
-                (ThemeSource::Auto, None) => "No end-4 / end4-pC colors found, so the seed color below is used.".into(),
-                (ThemeSource::AlbumArt, _) => "Colors follow the cover of the song that's playing.".into(),
-                (ThemeSource::Seed, _) => "Using a palette generated from the seed color.".into(),
-            };
-            row(ui, "Color source", &desc, |ui| {
-                changed |= segmented(ui, &mut config.theme_source, &[(ThemeSource::Auto, ICON_AUTO_AWESOME, "Desktop"), (ThemeSource::AlbumArt, ICON_ALBUM, "Album art"), (ThemeSource::Seed, ICON_PALETTE, "Seed")]);
-            });
-            ui.separator();
-            row(ui, "Color scheme", "Light, dark, or follow the system.", |ui| {
-                changed |= segmented(ui, &mut config.color_scheme, &[(ColorScheme::System, ICON_BRIGHTNESS_AUTO, "System"), (ColorScheme::Light, ICON_LIGHT_MODE, "Light"), (ColorScheme::Dark, ICON_DARK_MODE, "Dark")]);
-            });
-            ui.separator();
-            row(ui, "Seed color", "Every color in the interface is derived from this one.", |ui| {
-                let text = st.seed_text.get_or_insert_with(|| config.seed_color.clone());
-                if ui.add(egui::TextEdit::singleline(text).desired_width(92.0).char_limit(7)).changed() {
-                    if let Some(c) = parse_hex(text) {
-                        config.seed_color = to_hex(c);
-                        changed = true;
-                    }
-                }
-                for hex in SEED_PRESETS.iter().rev() {
-                    let c = parse_hex(hex).unwrap_or(Color32::GRAY);
-                    let (rect, resp) = ui.allocate_exact_size(vec2(24.0, 24.0), egui::Sense::click());
-                    ui.painter().circle_filled(rect.center(), 11.0, c);
-                    if config.seed_color.eq_ignore_ascii_case(hex) {
-                        ui.painter().circle_stroke(rect.center(), 12.5, egui::Stroke::new(2.0, p.on_surface));
-                    }
-                    if resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
-                        config.seed_color = hex.to_string();
-                        *text = hex.to_string();
-                        changed = true;
-                    }
-                }
-            });
-            ui.separator();
-            row(ui, "Filled icons", "Use filled Material Symbols instead of outlined ones.", |ui| {
-                changed |= switch(ui, &mut config.filled_icons).changed();
-            });
-            ui.separator();
-            row(ui, "Interface scale", "Size of everything in the window.", |ui| {
-                let r = ui.add(egui::Slider::new(&mut config.ui_scale, 0.75..=1.75).step_by(0.05).custom_formatter(|v, _| format!("{:.0}%", v * 100.0)));
-                changed |= r.drag_stopped() || (r.changed() && !r.dragged());
+        theme_changed |= prefs::appearance_card(ui, &mut config.appearance, theme);
+        card(ui, "Album art", |ui| {
+            row(ui, "Colors from album art", "While a song plays, the palette is seeded from its cover. Otherwise the color source above is used.", |ui| {
+                changed |= switch(ui, &mut config.album_art_colors).changed();
             });
         });
 
@@ -378,7 +329,7 @@ pub fn show(ui: &mut Ui, app: &mut App) {
         app.pages.home.shelves = Task::default();
         actions.push(Action::Toast("Signed out".into(), ToastKind::Info));
     }
-    if changed {
+    if changed || theme_changed {
         actions.push(Action::ConfigChanged);
     }
     app.actions.extend(actions);

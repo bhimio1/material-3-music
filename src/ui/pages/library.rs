@@ -1,13 +1,14 @@
 //! The synced library: playlists, liked songs, albums, artists, history.
 
-use super::{scroll, widgets};
+use super::scroll;
+use material_3_ui::widgets;
 use crate::app::App;
-use crate::ui::common;
+use material_3_ui::common;
 use crate::ui::tracks::{self, empty, ListOpts};
 use crate::ui::{Action, LibTab, Page};
 use crate::yt::model::{Item, Track};
 use egui::{RichText, Ui};
-use egui_material_icons::icons::*;
+use material_3_ui::icons::icons::*;
 
 #[derive(Default)]
 pub struct State {

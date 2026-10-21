@@ -2,7 +2,7 @@
 //! offline, re-synced in the background, and edited optimistically (the UI
 //! changes at once and rolls back if YouTube Music refuses).
 
-use crate::sys::task::Task;
+use material_3_ui::sys::task::Task;
 use crate::yt::model::{Collection, Item, Kind, Track};
 use crate::yt::{auth, Client, LibraryData};
 use std::collections::HashSet;

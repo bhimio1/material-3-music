@@ -1,13 +1,12 @@
 //! Navigation drawer: search, pages, the user's playlists, and the
 //! account / sync status.
 
-use super::tracks::menu_item;
-use super::widgets::{self, nav_item, section_header};
+use material_3_ui::widgets::{self, nav_item, section_header};
 use super::{Action, LibTab, Page};
 use crate::app::App;
 use crate::yt::model::Item;
 use egui::{vec2, Sense, Ui};
-use egui_material_icons::icons::*;
+use material_3_ui::icons::icons::*;
 
 pub fn show(ui: &mut Ui, app: &mut App) {
     let p = app.palette.clone();
@@ -23,7 +22,7 @@ pub fn show(ui: &mut Ui, app: &mut App) {
 
     let width = ui.available_width() - 4.0;
     let search = &mut app.pages.search;
-    let r = super::common::search_field(ui, &mut search.query, "Search songs, albums, artists", width);
+    let r = material_3_ui::common::search_field(ui, &mut search.query, "Search songs, albums, artists", width);
     if search.focus {
         search.focus = false;
         r.request_focus();
@@ -87,17 +86,14 @@ pub fn show(ui: &mut Ui, app: &mut App) {
                         actions.push(Action::Goto(page));
                     }
                     r.context_menu(|ui| {
-                        if menu_item(ui, ICON_PLAY_ARROW, "Play").clicked() {
+                        if widgets::menu_item(ui, Some(ICON_PLAY_ARROW), "Play", "", false) {
                             actions.push(Action::PlayCollection { collection: c.clone(), shuffle: false });
-                            ui.close();
                         }
-                        if menu_item(ui, ICON_SHUFFLE, "Shuffle").clicked() {
+                        if widgets::menu_item(ui, Some(ICON_SHUFFLE), "Shuffle", "", false) {
                             actions.push(Action::PlayCollection { collection: c.clone(), shuffle: true });
-                            ui.close();
                         }
-                        if menu_item(ui, ICON_DOWNLOAD, "Download").clicked() {
+                        if widgets::menu_item(ui, Some(ICON_DOWNLOAD), "Download", "", false) {
                             actions.push(Action::DownloadCollection(c.id.clone()));
-                            ui.close();
                         }
                     });
                 }

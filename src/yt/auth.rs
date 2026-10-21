@@ -44,7 +44,7 @@ fn now() -> i64 {
 
 pub fn data_dir() -> PathBuf {
     dirs::data_dir()
-        .unwrap_or_else(|| crate::sys::paths::home().join(".local/share"))
+        .unwrap_or_else(|| material_3_ui::sys::paths::home().join(".local/share"))
         .join("m3-music")
 }
 

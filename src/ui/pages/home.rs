@@ -1,15 +1,16 @@
 //! Home: YouTube Music's personalised shelves.
 
-use super::{scroll, widgets};
+use super::scroll;
+use material_3_ui::widgets;
 use crate::app::App;
-use crate::sys::task::Task;
-use crate::ui::common;
+use material_3_ui::sys::task::Task;
+use material_3_ui::common;
 use crate::ui::tracks::{self, empty};
 use crate::ui::{Action, Page};
 use crate::yt::model::Shelf;
 use chrono::Timelike;
 use egui::{RichText, Ui};
-use egui_material_icons::icons::*;
+use material_3_ui::icons::icons::*;
 
 #[derive(Default)]
 pub struct State {

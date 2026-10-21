@@ -1,28 +1,34 @@
 //! App state, theme, layout, keyboard shortcuts and action dispatch.
 
-use crate::config::{ColorScheme, Config, ThemeSource};
+use crate::config::Config;
 use crate::downloads::Downloads;
 use crate::library::Library;
 use crate::local::Local;
 use crate::player::mpris::{self, Mpris};
 use crate::player::{Notice, Player, Repeat};
-use crate::sys::task::Task;
-use crate::sys::term;
-use crate::theme::{sources, style, M3Palette};
 use crate::thumbs::Thumbs;
 use crate::ui::pages::{self, States};
-use crate::ui::toasts::{Toast, Toasts};
 use crate::ui::tracks::View;
-use crate::ui::{self, widgets, Action, Actions, Page, ToastKind};
+use crate::ui::{self, Action, Actions, Page, ToastKind};
 use crate::yt::model::{Kind, Track};
 use crate::yt::Client;
 use egui::{Color32, CornerRadius, Frame, Margin};
+use material_3_ui::keys::take_key;
+use material_3_ui::sys::arch::{self, AurHelper};
+use material_3_ui::sys::task::Task;
+use material_3_ui::sys::term;
+use material_3_ui::theme::palette::to_hex;
+use material_3_ui::theme::{style, ColorScheme, M3Palette, ThemeManager};
+use material_3_ui::toasts::{Toast, Toasts};
+use material_3_ui::widgets;
 use std::path::PathBuf;
 use std::time::Duration;
 
 pub struct App {
     pub ctx: egui::Context,
+    /// What's on screen: the theme's palette, or the album art's.
     pub palette: M3Palette,
+    pub theme: ThemeManager,
     pub config: Config,
     pub client: Client,
     pub player: Player,
@@ -33,7 +39,7 @@ pub struct App {
     pub thumbs: Thumbs,
     pub page: Page,
     history: Vec<Page>,
-    pub toasts: Toasts,
+    pub toasts: Toasts<Action>,
     pub actions: Actions,
     pub pages: States,
     /// Collections being fetched so they can be played or downloaded.
@@ -42,8 +48,6 @@ pub struct App {
     new_playlist: Option<(String, Vec<Track>)>,
     system_dark: Option<bool>,
     art_seed: Option<Color32>,
-    _theme_watcher: Option<notify::RecommendedWatcher>,
-    theme_events: flume::Receiver<PathBuf>,
     last_seek_signal: f64,
 }
 
@@ -56,31 +60,6 @@ enum CollectionJob {
 impl App {
     pub fn new(cc: &eframe::CreationContext<'_>, open: Vec<String>) -> Self {
         let ctx = cc.egui_ctx.clone();
-        style::install_fonts(&ctx);
-
-        let (tx, theme_events) = flume::unbounded();
-        let theme_watcher = {
-            use notify::Watcher;
-            let ctx = ctx.clone();
-            notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
-                if let Ok(ev) = res {
-                    if ev.kind.is_create() || ev.kind.is_modify() {
-                        for p in ev.paths {
-                            let _ = tx.send(p);
-                        }
-                        ctx.request_repaint_after(Duration::from_millis(150));
-                    }
-                }
-            })
-            .ok()
-            .map(|mut w| {
-                if let Some(dir) = sources::end4_colors_path().and_then(|p| p.parent().map(PathBuf::from)) {
-                    let _ = w.watch(&dir, notify::RecursiveMode::NonRecursive);
-                }
-                w
-            })
-        };
-
         let config = Config::load();
         let client = Client::new();
         let downloads = Downloads::new(ctx.clone());
@@ -88,8 +67,10 @@ impl App {
         player.autoplay = config.autoplay;
         let thumbs = Thumbs::new(ctx.clone(), client.agent().clone(), client.fixtures());
         let local = Local::new(ctx.clone(), config.folders());
+        let theme = ThemeManager::new(&ctx, &config.appearance);
         let mut app = Self {
-            palette: M3Palette::from_seed(crate::theme::palette::DEFAULT_SEED, true),
+            palette: theme.palette().clone(),
+            theme,
             mpris: Mpris::start(ctx.clone()),
             library: Library::load(),
             local,
@@ -104,8 +85,6 @@ impl App {
             new_playlist: None,
             system_dark: ctx.system_theme().map(|t| t == egui::Theme::Dark),
             art_seed: None,
-            _theme_watcher: theme_watcher,
-            theme_events,
             last_seek_signal: 0.0,
             config,
             client,
@@ -188,57 +167,47 @@ impl App {
 
     // ------------------------------------------------------------------ theme
 
-    fn wants_dark(&self) -> bool {
-        match self.config.color_scheme {
+    /// Apply the appearance settings (and album art colors over them).
+    pub fn apply_theme(&mut self) {
+        self.theme.apply(&self.config.appearance);
+        self.theme_applied();
+    }
+
+    /// After the theme manager (re)applied the appearance settings.
+    fn theme_applied(&mut self) {
+        if let Some(e) = self.theme.take_error() {
+            self.toast(e, ToastKind::Error);
+        }
+        self.palette = self.theme.palette().clone();
+        self.apply_art_palette();
+    }
+
+    /// With album art colors on, paint over the theme with a palette
+    /// seeded from the playing song's cover.
+    fn apply_art_palette(&mut self) {
+        let Some(seed) = self.art_seed.filter(|_| self.config.album_art_colors) else { return };
+        let dark = match self.config.appearance.scheme {
             ColorScheme::Light => false,
             ColorScheme::Dark => true,
             ColorScheme::System => self.system_dark.unwrap_or(true),
-        }
-    }
-
-    pub fn theme_file(&self) -> Option<PathBuf> {
-        match self.config.theme_source {
-            ThemeSource::Auto => sources::end4_colors_path().filter(|p| p.is_file()),
-            _ => None,
-        }
-    }
-
-    pub fn apply_theme(&mut self) {
-        let dark = self.wants_dark();
-        let palette = match (self.config.theme_source, self.theme_file(), self.art_seed) {
-            (ThemeSource::AlbumArt, _, Some(seed)) => M3Palette::from_seed(&crate::theme::palette::to_hex(seed), dark),
-            (_, Some(path), _) => match M3Palette::from_theme_json(&path) {
-                Ok(p) => p,
-                Err(e) => {
-                    self.toast(format!("Couldn't read {}: {e}", path.display()), ToastKind::Error);
-                    M3Palette::from_seed(&self.config.seed_color, dark)
-                }
-            },
-            _ => M3Palette::from_seed(&self.config.seed_color, dark),
         };
+        let palette = M3Palette::from_seed(&to_hex(seed), dark);
         style::apply(&self.ctx, &palette);
         widgets::set_palette(&self.ctx, palette.clone());
-        widgets::set_filled_icons(self.config.filled_icons);
-        let scale = self.config.ui_scale.clamp(0.6, 2.5);
-        if (self.ctx.zoom_factor() - scale).abs() > f32::EPSILON {
-            self.ctx.set_zoom_factor(scale);
-        }
         self.palette = palette;
     }
 
     fn poll_theme(&mut self) {
-        let changed: Vec<PathBuf> = self.theme_events.try_iter().collect();
-        if let Some(theme) = self.theme_file() {
-            if changed.contains(&theme) {
-                self.apply_theme();
-            }
+        if self.theme.poll(&self.config.appearance) {
+            self.theme_applied();
         }
         let system_dark = self.ctx.system_theme().map(|t| t == egui::Theme::Dark);
+        let mut repaint_art = false;
         if system_dark != self.system_dark {
             self.system_dark = system_dark;
-            self.apply_theme();
+            repaint_art = true;
         }
-        if self.config.theme_source == ThemeSource::AlbumArt {
+        if self.config.album_art_colors {
             let seed = self
                 .player
                 .current()
@@ -246,8 +215,11 @@ impl App {
                 .and_then(|u| self.thumbs.seed(&u));
             if seed.is_some() && seed != self.art_seed {
                 self.art_seed = seed;
-                self.apply_theme();
+                repaint_art = true;
             }
+        }
+        if repaint_art {
+            self.apply_art_palette();
         }
     }
 
@@ -457,7 +429,7 @@ impl App {
             }
             Action::Toast(text, kind) => self.toast(text, kind),
             Action::Install(pkg) => {
-                let cmd = format!("sudo pacman -S --needed {}", term::shell_quote(&pkg));
+                let cmd = arch::install_command(&[&pkg], AurHelper::Auto);
                 match term::run(&self.config.terminal, &cmd) {
                     Ok(t) => self.toast(format!("Installing {pkg} in {t}"), ToastKind::Info),
                     Err(e) => self.toast(e, ToastKind::Error),
@@ -506,12 +478,12 @@ impl App {
                 Err(e) => self.toast(e, ToastKind::Error),
             },
             Action::OpenPath(path) => {
-                if let Err(e) = crate::sys::cmd::spawn_detached("xdg-open", &[&path.to_string_lossy()]) {
+                if let Err(e) = material_3_ui::sys::cmd::spawn_detached("xdg-open", &[&path.to_string_lossy()]) {
                     self.toast(e, ToastKind::Error);
                 }
             }
             Action::OpenUrl(url) => {
-                if let Err(e) = crate::sys::cmd::spawn_detached("xdg-open", &[&url]) {
+                if let Err(e) = material_3_ui::sys::cmd::spawn_detached("xdg-open", &[&url]) {
                     self.toast(e, ToastKind::Error);
                 }
             }
@@ -546,28 +518,24 @@ impl App {
     }
 
     fn shortcuts(&mut self, ctx: &egui::Context) {
+        use egui::{Key, Modifiers};
         let typing = ctx.memory(|m| m.focused().is_some());
-        ctx.input_mut(|i| {
-            let cmd = i.modifiers.command;
-            if !typing && i.consume_key(egui::Modifiers::NONE, egui::Key::Space) {
-                self.player.toggle_pause();
-            }
-            if cmd && i.consume_key(egui::Modifiers::COMMAND, egui::Key::ArrowRight) {
-                self.player.next();
-            }
-            if cmd && i.consume_key(egui::Modifiers::COMMAND, egui::Key::ArrowLeft) {
-                self.player.previous();
-            }
-            if cmd && i.consume_key(egui::Modifiers::COMMAND, egui::Key::F) {
-                self.pages.search.focus = true;
-                self.actions.push(Action::Goto(Page::Search));
-            }
-            if i.pointer.button_pressed(egui::PointerButton::Extra1)
-                || (i.modifiers.alt && i.key_pressed(egui::Key::ArrowLeft))
-            {
-                self.actions.push(Action::Back);
-            }
-        });
+        if !typing && take_key(ctx, Modifiers::NONE, Key::Space) {
+            self.player.toggle_pause();
+        }
+        if take_key(ctx, Modifiers::COMMAND, Key::ArrowRight) {
+            self.player.next();
+        }
+        if take_key(ctx, Modifiers::COMMAND, Key::ArrowLeft) {
+            self.player.previous();
+        }
+        if take_key(ctx, Modifiers::COMMAND, Key::F) {
+            self.pages.search.focus = true;
+            self.actions.push(Action::Goto(Page::Search));
+        }
+        if ctx.input(|i| i.pointer.button_pressed(egui::PointerButton::Extra1)) || take_key(ctx, Modifiers::ALT, Key::ArrowLeft) {
+            self.actions.push(Action::Back);
+        }
     }
 
     fn new_playlist_dialog(&mut self) {
@@ -686,7 +654,8 @@ impl eframe::App for App {
         self.shortcuts(&ctx);
         self.layout(ui);
         self.new_playlist_dialog();
-        ui::toasts::show(&ctx, self);
+        let fired = self.toasts.show(&ctx, &self.palette, 20.0);
+        self.actions.extend(fired);
         self.process_actions();
     }
 

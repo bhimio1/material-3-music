@@ -25,7 +25,7 @@ pub struct Thumbs {
 
 fn cache_dir() -> PathBuf {
     dirs::cache_dir()
-        .unwrap_or_else(|| crate::sys::paths::home().join(".cache"))
+        .unwrap_or_else(|| material_3_ui::sys::paths::home().join(".cache"))
         .join("m3-music/thumbs")
 }
 
