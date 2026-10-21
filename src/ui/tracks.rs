@@ -288,6 +288,7 @@ fn collection_icon(kind: Kind) -> MaterialIcon {
         Kind::Album | Kind::Single => ICON_ALBUM,
         Kind::Artist => ICON_PERSON,
         Kind::Playlist => ICON_QUEUE_MUSIC,
+        Kind::Podcast => ICON_PODCASTS,
     }
 }
 
@@ -300,7 +301,9 @@ pub fn collection_menu(ui: &mut Ui, v: &mut View, c: &Collection) {
         v.push(Action::PlayCollection { collection: c.clone(), shuffle: true });
         ui.close();
     }
-    if c.kind != Kind::Artist && menu_item(ui, ICON_DOWNLOAD, "Download").clicked() {
+    // Artists and podcast shows can be huge; download their songs or
+    // episodes one by one instead.
+    if !matches!(c.kind, Kind::Artist | Kind::Podcast) && menu_item(ui, ICON_DOWNLOAD, "Download").clicked() {
         v.push(Action::DownloadCollection(c.id.clone()));
         ui.close();
     }

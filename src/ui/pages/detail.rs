@@ -22,6 +22,8 @@ fn kind_of(id: &str) -> Kind {
         Kind::Artist
     } else if id.starts_with("MPREb_") {
         Kind::Album
+    } else if id.starts_with("MPSP") {
+        Kind::Podcast
     } else {
         Kind::Playlist
     }
@@ -89,6 +91,7 @@ pub fn show(ui: &mut Ui, app: &mut App, id: &str) {
             let icon = match kind {
                 Kind::Artist => ICON_PERSON,
                 Kind::Playlist => ICON_QUEUE_MUSIC,
+                Kind::Podcast => ICON_PODCASTS,
                 _ => ICON_ALBUM,
             };
             art::paint(ui, v.thumbs, d.thumbnail.as_deref(), rect, round, icon);
@@ -98,6 +101,7 @@ pub fn show(ui: &mut Ui, app: &mut App, id: &str) {
                 let label = match kind {
                     Kind::Artist => "Artist",
                     Kind::Playlist => "Playlist",
+                    Kind::Podcast => "Podcast",
                     _ => "Album",
                 };
                 ui.add_space(8.0);
@@ -131,7 +135,9 @@ pub fn show(ui: &mut Ui, app: &mut App, id: &str) {
                                 v.push(Action::StartRadio(first.clone()));
                             }
                         }
-                    } else if widgets::button(ui, widgets::ButtonKind::Outlined, Some(ICON_DOWNLOAD), "Download").clicked() {
+                    } else if kind != Kind::Podcast
+                        && widgets::button(ui, widgets::ButtonKind::Outlined, Some(ICON_DOWNLOAD), "Download").clicked()
+                    {
                         v.push(Action::DownloadCollection(id.to_string()));
                     }
                     let more = widgets::icon_button(ui, ICON_MORE_VERT, "More", true);

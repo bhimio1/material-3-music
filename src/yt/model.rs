@@ -86,6 +86,8 @@ pub enum Kind {
     Single,
     Artist,
     Playlist,
+    /// A podcast show (`MPSP…`); its tracks are episodes.
+    Podcast,
 }
 
 /// An album, artist or playlist shown as a card or row.
@@ -157,10 +159,14 @@ pub struct Account {
 }
 
 /// `3:45` / `1:02:03` → seconds.
+/// "3:45", "1:02:03", or podcast-style "1 hr 23 min" / "45 min" / "30 sec".
 pub fn parse_duration(text: &str) -> Option<u32> {
     let text = text.trim();
-    if text.is_empty() || !text.contains(':') {
+    if text.is_empty() {
         return None;
+    }
+    if !text.contains(':') {
+        return parse_spelled_duration(text);
     }
     let mut total = 0u32;
     for part in text.split(':') {
@@ -168,6 +174,24 @@ pub fn parse_duration(text: &str) -> Option<u32> {
             return None;
         }
         total = total * 60 + part.parse::<u32>().ok()?;
+    }
+    Some(total)
+}
+
+fn parse_spelled_duration(text: &str) -> Option<u32> {
+    let words: Vec<&str> = text.split_whitespace().collect();
+    if words.is_empty() || !words.len().is_multiple_of(2) {
+        return None;
+    }
+    let mut total = 0u32;
+    for pair in words.chunks(2) {
+        let n: u32 = pair[0].parse().ok()?;
+        total += n * match pair[1].trim_end_matches(',') {
+            "hr" | "hrs" | "hour" | "hours" | "h" => 3600,
+            "min" | "mins" | "minute" | "minutes" | "m" => 60,
+            "sec" | "secs" | "second" | "seconds" | "s" => 1,
+            _ => return None,
+        };
     }
     Some(total)
 }
@@ -193,6 +217,10 @@ mod tests {
         assert_eq!(parse_duration("Song"), None);
         assert_eq!(parse_duration("12 views"), None);
         assert_eq!(parse_duration("2021"), None);
+        assert_eq!(parse_duration("1 hr 23 min"), Some(4980));
+        assert_eq!(parse_duration("45 min"), Some(2700));
+        assert_eq!(parse_duration("2M views"), None);
+        assert_eq!(parse_duration("1d ago"), None);
         assert_eq!(format_duration(225.4), "3:45");
         assert_eq!(format_duration(3723.0), "1:02:03");
         assert_eq!(format_duration(f64::NAN), "0:00");

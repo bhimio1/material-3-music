@@ -152,3 +152,102 @@ fn garbage_does_not_panic() {
         assert!(lyrics(&v).is_none());
     }
 }
+
+// Trimmed real responses from music.youtube.com, fetched without signing in
+// from a US datacenter IP (which gets podcasts and videos rather than the
+// music catalog on Home and artist pages).
+
+fn real(name: &str) -> Value {
+    fixture(&format!("real/{name}"))
+}
+
+#[test]
+fn real_search_is_grouped_by_type() {
+    let r = real("search");
+    let s = shelves(&r);
+    let titles: Vec<&str> = s.iter().map(|s| s.title.as_str()).collect();
+    assert_eq!(titles, ["Top result", "Artists", "Episodes", "Videos", "Profiles", "Playlists", "Podcasts"]);
+    assert!(s.iter().all(|s| s.more.is_none()));
+
+    let top = coll(&s[0].items[0]);
+    assert_eq!((top.kind, top.id.as_str()), (Kind::Artist, "UCRr1xG_2WIDs18a6cIiCxeA"));
+    assert_eq!(top.subtitle, "Artist • 70.7M monthly audience");
+
+    let episode = track(&s[2].items[0]);
+    assert_eq!(episode.artists[0].id.as_deref(), Some("MPSPPL86qxyvYx0HecWvWwvVQ_CnvXTb6BhBOH"));
+    let video = track(&s[3].items[0]);
+    assert_eq!((video.title.as_str(), video.artist_line()), ("Da Funk", "Daft Punk".to_string()));
+    assert!(video.is_video);
+    let podcast = coll(&s[6].items[0]);
+    assert_eq!(podcast.kind, Kind::Podcast);
+    assert_eq!(podcast.play_id.as_deref(), Some("PLfi1TyMMEeViQLTNDy9Dol7AJkhrA66WQ"));
+}
+
+#[test]
+fn real_search_filters_come_from_the_chips() {
+    let f = search_filters(&real("search"));
+    let labels: Vec<&str> = f.iter().map(|(l, _)| l.as_str()).collect();
+    assert_eq!(labels, ["Artists", "Episodes", "Videos", "Profiles", "Community playlists", "Podcasts"]);
+    // Percent-decoded, ready to send back.
+    assert_eq!(f[4].1, "EgeKAQQoAEABagwQBRAQEAQQFRAKEBE=");
+}
+
+#[test]
+fn real_home_podcasts() {
+    let s = shelves(&real("home"));
+    assert_eq!(s[0].title, "Podcasts to get you started");
+    let show = coll(&s[0].items[0]);
+    assert_eq!((show.kind, show.id.as_str(), show.title.as_str()), (Kind::Podcast, "MPSPPL22egh3ok4cP0T7UZRmP6TMLErZYWMN-l", "The Diary Of A CEO"));
+    assert!(show.thumbnail.as_deref().unwrap().starts_with("https://i.ytimg.com/pl_c/"));
+}
+
+#[test]
+fn real_artist_page() {
+    let d = detail(&real("artist"), "UCRr1xG_2WIDs18a6cIiCxeA");
+    assert_eq!((d.title.as_str(), d.subtitle.as_str()), ("Daft Punk", "70.7M monthly audience"));
+    assert!(d.description.starts_with("Daft Punk were a French electronic music duo"));
+    let titles: Vec<&str> = d.shelves.iter().map(|s| s.title.as_str()).collect();
+    assert_eq!(titles, ["Videos", "Live performances", "Playlists by Daft Punk"]);
+    assert_eq!(d.tracks[0].title, "One More Time");
+    assert!(d.radio_id.is_some());
+}
+
+#[test]
+fn real_podcast_episodes() {
+    let d = detail(&real("podcast"), "MPSPPL22egh3ok4cP0T7UZRmP6TMLErZYWMN-l");
+    assert_eq!(d.title, "The Diary Of A CEO");
+    let e = &d.tracks[0];
+    assert_eq!(e.video_id.as_deref(), Some("GlaSnROMqRY"));
+    assert_eq!(e.duration, Some(4980)); // "1 hr 23 min"
+    assert_eq!(e.artists[0].id.as_deref(), Some("MPSPPL22egh3ok4cP0T7UZRmP6TMLErZYWMN-l"));
+}
+
+#[test]
+fn real_playlist_and_continuation() {
+    let p = real("playlist");
+    let d = detail(&p, "VLPLFgquLnL59alCl_2TQvOiD5Vgm1hCaGSI");
+    assert_eq!(d.title, "Popular Music Videos");
+    assert_eq!(d.tracks.len(), 5);
+    assert_eq!(d.tracks[0].duration, Some(235));
+    // The track list's own token, not the page's "more sections" one.
+    let token = d.continuation.unwrap();
+    assert!(token.starts_with("4qmFsgKHARIkVkxQTEZncXVM"), "{token}");
+
+    let more = real("playlist_continuation");
+    let t = tracks(&more);
+    assert_eq!(t.len(), 5);
+    assert!(t[0].set_video_id.is_some());
+    assert_eq!(continuation(&more), None);
+}
+
+#[test]
+fn real_radio_and_lyrics() {
+    let (queue, lyrics_id) = next(&real("next"));
+    assert_eq!(queue[0].video_id.as_deref(), Some("FGBhQbmPwH8"));
+    assert_eq!(queue[0].duration, Some(322));
+    assert_eq!(lyrics_id.as_deref(), Some("MPLYt_FY0XZwCKdnl"));
+    let l = lyrics(&real("lyrics")).unwrap();
+    assert_eq!(l.text, "One more time\nOne more time\n");
+    assert_eq!(l.source, "Source: LyricFind");
+    assert_eq!(suggestions(&real("suggestions"))[0], "daft punk");
+}

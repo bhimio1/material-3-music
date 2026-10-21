@@ -32,6 +32,7 @@ fn kind_for(page_type: &str, subtitle: &str) -> Option<Kind> {
             Some(Kind::Artist)
         }
         "MUSIC_PAGE_TYPE_PLAYLIST" => Some(Kind::Playlist),
+        "MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE" => Some(Kind::Podcast),
         _ => None,
     }
 }
@@ -60,6 +61,10 @@ fn read_meta_runs(runs: &[Value], track: &mut Track, loose: &mut Vec<String>) {
                 track.artists.push(Link::new(t, Some(artist_id(id))));
             }
             Some((id, "MUSIC_PAGE_TYPE_ALBUM")) => track.album = Some(Link::new(t, Some(id.to_string()))),
+            // An episode's show stands in for the artist.
+            Some((id, "MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE")) => {
+                track.artists.push(Link::new(t, Some(id.to_string())));
+            }
             _ => {
                 if let Some(d) = parse_duration(t) {
                     track.duration = Some(d);
@@ -83,9 +88,21 @@ fn guess_artist(loose: &[String]) -> Option<String> {
                 && !TYPE_WORDS.contains(t)
                 && !t.ends_with("views")
                 && !t.ends_with("plays")
+                && !t.ends_with(" ago")
+                && !looks_like_date(t)
                 && !(t.len() == 4 && t.chars().all(|c| c.is_ascii_digit()))
         })
         .map(str::to_string)
+}
+
+/// "Jul 21", "Jun 20, 2025": episode dates in subtitles.
+fn looks_like_date(t: &str) -> bool {
+    const MONTHS: &[&str] = &["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    let mut words = t.split_whitespace();
+    let (Some(month), Some(day)) = (words.next(), words.next()) else {
+        return false;
+    };
+    MONTHS.contains(&month) && day.trim_end_matches(',').parse::<u8>().is_ok()
 }
 
 fn music_video_type(node: &Value) -> Option<&str> {
@@ -215,19 +232,66 @@ pub fn panel_video(r: &Value) -> Option<Track> {
     Some(track)
 }
 
+/// `musicMultiRowListItemRenderer`: podcast episodes on a show page.
+pub fn episode(r: &Value) -> Option<Track> {
+    let video_id = str_at(r, "onTap/watchEndpoint/videoId")
+        .or_else(|| find(at(r, "overlay")?, "watchEndpoint").and_then(|w| str_at(w, "videoId")))?
+        .to_string();
+    let title = text_at(r, "title");
+    if title.is_empty() {
+        return None;
+    }
+    let duration = at(r, "playbackProgress/musicPlaybackProgressRenderer/durationText")
+        .map(text)
+        .and_then(|t| parse_duration(t.trim_start_matches(|c: char| c == '•' || c.is_whitespace())));
+    Some(Track {
+        video_id: Some(video_id),
+        title,
+        thumbnail: thumbnail(at(r, "thumbnail").unwrap_or(&Value::Null)),
+        duration,
+        is_video: false,
+        ..Default::default()
+    })
+}
+
+fn item_of(c: &Value) -> Option<Item> {
+    if let Some(r) = c.get("musicResponsiveListItemRenderer") {
+        list_item(r)
+    } else if let Some(r) = c.get("musicTwoRowItemRenderer") {
+        two_row(r)
+    } else if let Some(r) = c.get("musicMultiRowListItemRenderer") {
+        episode(r).map(Item::Track)
+    } else {
+        None
+    }
+}
+
 fn items_of(contents: &[Value]) -> Vec<Item> {
-    contents
-        .iter()
-        .filter_map(|c| {
-            if let Some(r) = c.get("musicResponsiveListItemRenderer") {
-                list_item(r)
-            } else if let Some(r) = c.get("musicTwoRowItemRenderer") {
-                two_row(r)
-            } else {
-                None
-            }
-        })
-        .collect()
+    contents.iter().filter_map(item_of).collect()
+}
+
+/// Search results now come as one `itemSectionRenderer` per result, with
+/// no headings. The section title comes from the result's type word
+/// ("Song • Artist • …"), so results can be grouped like the old shelves.
+fn result_group(c: &Value) -> &'static str {
+    let first = c
+        .get("musicResponsiveListItemRenderer")
+        .and_then(|r| arr_at(r, "flexColumns").get(1))
+        .and_then(|col| runs(at(col, "musicResponsiveListItemFlexColumnRenderer/text")).first())
+        .and_then(|run| run.get("text"))
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    match first {
+        "Song" => "Songs",
+        "Video" => "Videos",
+        "Album" | "EP" | "Single" => "Albums",
+        "Artist" => "Artists",
+        "Playlist" => "Playlists",
+        "Episode" => "Episodes",
+        "Podcast" => "Podcasts",
+        "Profile" => "Profiles",
+        _ => "Results",
+    }
 }
 
 fn top_result(card: &Value) -> Vec<Item> {
@@ -273,8 +337,35 @@ pub fn shelves(resp: &Value) -> Vec<Shelf> {
     let mut out = Vec::new();
     walk_shelves(resp, &mut out);
     out.retain(|s| !s.items.is_empty());
+    for s in &mut out {
+        if s.more.as_deref() == Some(GROUPED) {
+            s.more = None;
+        }
+    }
     out
 }
+
+/// A flat search result section: one row, grouped by its type into the
+/// shelf with that title (created where the type first appears).
+fn push_grouped(out: &mut Vec<Shelf>, title: &str, item: Item) {
+    const GROUPS: &[&str] = &["Songs", "Videos", "Albums", "Artists", "Playlists", "Episodes", "Podcasts", "Profiles", "Results"];
+    debug_assert!(GROUPS.contains(&title));
+    // Only merge into shelves made the same way (titled shelves from real
+    // headings are left alone).
+    if let Some(s) = out.iter_mut().rev().find(|s| s.title == title && s.more.as_deref() == Some(GROUPED)) {
+        s.items.push(item);
+    } else {
+        out.push(Shelf {
+            title: title.to_string(),
+            items: vec![item],
+            more: Some(GROUPED.to_string()),
+        });
+    }
+}
+
+/// Marker in `Shelf::more` for shelves built by grouping flat results;
+/// cleared before returning.
+const GROUPED: &str = "\u{0}grouped";
 
 fn walk_shelves(value: &Value, out: &mut Vec<Shelf>) {
     match value {
@@ -310,6 +401,15 @@ fn walk_shelves(value: &Value, out: &mut Vec<Shelf>) {
                         items: top_result(v),
                         more: None,
                     }),
+                    "itemSectionRenderer"
+                        if arr_at(v, "contents").iter().any(|c| c.get("musicResponsiveListItemRenderer").is_some()) =>
+                    {
+                        for c in arr_at(v, "contents") {
+                            if let Some(item) = item_of(c) {
+                                push_grouped(out, result_group(c), item);
+                            }
+                        }
+                    }
                     _ => walk_shelves(v, out),
                 }
             }
@@ -334,22 +434,74 @@ pub fn suggestions(resp: &Value) -> Vec<String> {
     out
 }
 
-/// Continuation token for loading more rows.
+/// Search filter chips ("Songs", "Videos", …) with the `params` that
+/// select them. Which filters exist depends on the query and region, so
+/// they're read from the response rather than hardcoded.
+pub fn search_filters(resp: &Value) -> Vec<(String, String)> {
+    find_all(resp, "chipCloudChipRenderer")
+        .into_iter()
+        .filter_map(|c| {
+            let label = text_at(c, "text");
+            let params = str_at(c, "navigationEndpoint/searchEndpoint/params")?;
+            (!label.is_empty()).then(|| (label, percent_decode(params)))
+        })
+        .collect()
+}
+
+/// `params` come URL-encoded in chip endpoints (`…%3D%3D`).
+fn percent_decode(s: &str) -> String {
+    let bytes = s.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let Ok(b) = u8::from_str_radix(&s[i + 1..i + 3], 16) {
+                out.push(b);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// Continuation token for loading more tracks of a list. Only the list's
+/// own continuation counts: pages also carry a "more sections" token
+/// (related playlists etc.) that yields no tracks.
 pub fn continuation(resp: &Value) -> Option<String> {
-    find(resp, "continuationItemRenderer")
-        .and_then(|c| str_at(c, "continuationEndpoint/continuationCommand/token"))
-        .or_else(|| find(resp, "nextContinuationData").and_then(|c| str_at(c, "continuation")))
-        .map(str::to_string)
+    let token = |node: &Value| {
+        find(node, "continuationItemRenderer")
+            .and_then(|c| str_at(c, "continuationEndpoint/continuationCommand/token"))
+            .or_else(|| find(node, "nextContinuationData").and_then(|c| str_at(c, "continuation")))
+            .map(str::to_string)
+    };
+    // A continuation page: its appended items carry the next token.
+    if let Some(actions) = resp.get("onResponseReceivedActions") {
+        return token(actions);
+    }
+    if let Some(c) = resp.get("continuationContents") {
+        return ["musicPlaylistShelfContinuation", "musicShelfContinuation"]
+            .iter()
+            .find_map(|k| c.get(*k))
+            .and_then(token);
+    }
+    ["musicPlaylistShelfRenderer", "musicShelfRenderer"]
+        .iter()
+        .find_map(|k| find(resp, k))
+        .and_then(token)
 }
 
 /// All tracks in a response (playlist pages and their continuations).
 pub fn tracks(resp: &Value) -> Vec<Track> {
-    find_all(resp, "musicResponsiveListItemRenderer")
+    find_any(resp, &["musicResponsiveListItemRenderer", "musicMultiRowListItemRenderer"])
         .into_iter()
-        .filter_map(list_item)
-        .filter_map(|i| match i {
-            Item::Track(t) => Some(t),
-            _ => None,
+        .filter_map(|r| match list_item(r) {
+            Some(Item::Track(t)) => Some(t),
+            Some(_) => None,
+            // Podcast episodes (multi-row items have no flex columns).
+            None => episode(r),
         })
         .collect()
 }
@@ -371,7 +523,7 @@ const HEADERS: &[&str] = &[
 pub fn detail(resp: &Value, id: &str) -> Detail {
     let header = HEADERS.iter().find_map(|k| find(resp, k)).unwrap_or(&Value::Null);
     let title = text_at(header, "title");
-    let subtitle = ["subtitle", "straplineTextOne", "secondSubtitle"]
+    let subtitle = ["subtitle", "straplineTextOne", "secondSubtitle", "monthlyListenerCount"]
         .iter()
         .map(|k| text_at(header, k))
         .filter(|s| !s.is_empty())
@@ -437,6 +589,15 @@ pub fn detail(resp: &Value, id: &str) -> Detail {
     }
     detail.shelves.extend(shelf_iter);
 
+    // A podcast show's episodes: the show stands in for the artist.
+    if id.starts_with("MPSP") {
+        for t in &mut tracks {
+            if t.artists.is_empty() {
+                t.artists.push(Link::new(detail.title.clone(), Some(id.to_string())));
+            }
+        }
+    }
+
     let is_album = id.starts_with("MPREb_");
     if is_album {
         let artist = runs(at(header, "straplineTextOne"))
@@ -486,7 +647,8 @@ pub fn next(resp: &Value) -> (Vec<Track>, Option<String>) {
 
 pub fn lyrics(resp: &Value) -> Option<Lyrics> {
     let shelf = find(resp, "musicDescriptionShelfRenderer")?;
-    let text = text_at(shelf, "description");
+    // Real lyrics come with Windows line endings.
+    let text = text_at(shelf, "description").replace("\r\n", "\n");
     if text.trim().is_empty() {
         return None;
     }

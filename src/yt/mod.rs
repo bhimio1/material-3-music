@@ -21,38 +21,19 @@ const API: &str = "https://music.youtube.com/youtubei/v1";
 const USER_AGENT: &str =
     "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0";
 
-/// Search result filters (ytmusicapi's `params` values).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Filter {
-    Songs,
-    Videos,
-    Albums,
-    Artists,
-    Playlists,
+/// A search filter chip ("Songs", "Videos", "Community playlists", …).
+/// Which ones exist depends on the query and the region, so they come
+/// from the unfiltered results instead of a fixed list.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SearchFilter {
+    pub label: String,
+    pub params: String,
 }
 
-impl Filter {
-    pub const ALL: [Filter; 5] = [Filter::Songs, Filter::Videos, Filter::Albums, Filter::Artists, Filter::Playlists];
-
-    pub fn label(self) -> &'static str {
-        match self {
-            Filter::Songs => "Songs",
-            Filter::Videos => "Videos",
-            Filter::Albums => "Albums",
-            Filter::Artists => "Artists",
-            Filter::Playlists => "Playlists",
-        }
-    }
-
-    fn params(self) -> &'static str {
-        match self {
-            Filter::Songs => "EgWKAQIIAWoMEA4QChADEAQQCRAF",
-            Filter::Videos => "EgWKAQIQAWoMEA4QChADEAQQCRAF",
-            Filter::Albums => "EgWKAQIYAWoMEA4QChADEAQQCRAF",
-            Filter::Artists => "EgWKAQIgAWoMEA4QChADEAQQCRAF",
-            Filter::Playlists => "EgWKAQIoAWoMEA4QChADEAQQCRAF",
-        }
-    }
+#[derive(Clone, Debug, Default)]
+pub struct SearchResults {
+    pub shelves: Vec<Shelf>,
+    pub filters: Vec<SearchFilter>,
 }
 
 /// The library as synced from the account.
@@ -76,10 +57,50 @@ pub struct Client {
     agent: ureq::Agent,
     auth: Arc<Mutex<Option<Auth>>>,
     fixtures: Option<PathBuf>,
+    web: Arc<Mutex<Option<WebConfig>>>,
 }
 
-fn client_version() -> String {
+/// What the YouTube Music web page says about itself: the client version
+/// to send, and the visitor id it handed out. Fetched once a day.
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+struct WebConfig {
+    client_version: String,
+    #[serde(default)]
+    visitor_data: String,
+    fetched_at: i64,
+}
+
+const CONFIG_MAX_AGE_SECS: i64 = 24 * 3600;
+
+fn web_config_path() -> Option<PathBuf> {
+    dirs::cache_dir().map(|d| d.join("m3-music/web-config.json"))
+}
+
+/// Pull `"KEY":"value"` out of the page's inline `ytcfg.set({...})`.
+fn ytcfg_value(page: &str, key: &str) -> Option<String> {
+    let needle = format!("\"{key}\":\"");
+    let start = page.find(&needle)? + needle.len();
+    let end = page[start..].find('"')? + start;
+    let v = &page[start..end];
+    (!v.is_empty()).then(|| v.to_string())
+}
+
+/// Fallback when the page can't be read: today's date in YouTube's format.
+fn dated_client_version() -> String {
     format!("1.{}.01.00", chrono::Utc::now().format("%Y%m%d"))
+}
+
+/// `hl`/`gl` from the locale (`LANG=de_AT.UTF-8` → `de`, `AT`).
+fn locale() -> (String, String) {
+    let raw = ["LC_ALL", "LC_MESSAGES", "LANG"]
+        .iter()
+        .find_map(|k| std::env::var(k).ok().filter(|v| !v.is_empty() && v != "C" && v != "POSIX"))
+        .unwrap_or_default();
+    let base = raw.split(['.', '@']).next().unwrap_or("");
+    let mut parts = base.split('_');
+    let hl = parts.next().filter(|l| l.len() == 2 || l.len() == 3).unwrap_or("en").to_lowercase();
+    let gl = parts.next().filter(|c| c.len() == 2).unwrap_or("US").to_uppercase();
+    (hl, gl)
 }
 
 fn only_tracks(items: Vec<Item>) -> Vec<Track> {
@@ -103,7 +124,53 @@ impl Client {
                 .build(),
             auth: Arc::new(Mutex::new(Auth::load())),
             fixtures: std::env::var_os("M3_MUSIC_FIXTURES").map(PathBuf::from),
+            web: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// The current web client config, from memory, the disk cache, or the
+    /// page itself (refreshed daily). Never fails: falls back to a dated
+    /// version string, which InnerTube also accepts.
+    fn web_config(&self) -> WebConfig {
+        let now = chrono::Utc::now().timestamp();
+        let fresh = |c: &WebConfig| now - c.fetched_at < CONFIG_MAX_AGE_SECS && !c.client_version.is_empty();
+        if let Some(c) = self.web.lock().ok().and_then(|g| g.clone()).filter(fresh) {
+            return c;
+        }
+        let cached = web_config_path()
+            .and_then(|p| std::fs::read_to_string(p).ok())
+            .and_then(|t| serde_json::from_str::<WebConfig>(&t).ok());
+        let config = match cached.filter(fresh) {
+            Some(c) => c,
+            None => match self.fetch_web_config() {
+                Some(c) => {
+                    if let Some(p) = web_config_path() {
+                        let _ = std::fs::create_dir_all(p.parent().unwrap_or(&p));
+                        let _ = std::fs::write(p, serde_json::to_string(&c).unwrap_or_default());
+                    }
+                    c
+                }
+                // Try again in a few minutes rather than every request.
+                None => WebConfig {
+                    client_version: dated_client_version(),
+                    visitor_data: String::new(),
+                    fetched_at: now - CONFIG_MAX_AGE_SECS + 300,
+                },
+            },
+        };
+        if let Ok(mut g) = self.web.lock() {
+            *g = Some(config.clone());
+        }
+        config
+    }
+
+    fn fetch_web_config(&self) -> Option<WebConfig> {
+        let page = self.agent.get(&format!("{ORIGIN}/")).call().ok()?.into_string().ok()?;
+        Some(WebConfig {
+            client_version: ytcfg_value(&page, "INNERTUBE_CLIENT_VERSION")?,
+            visitor_data: ytcfg_value(&page, "VISITOR_DATA").unwrap_or_default(),
+            fetched_at: chrono::Utc::now().timestamp(),
+        })
     }
 
     pub fn agent(&self) -> &ureq::Agent {
@@ -173,10 +240,13 @@ impl Client {
                 None => Ok(json!({"playlistId": "PLnew0000"})),
             };
         }
-        body["context"] = json!({
-            "client": {"clientName": "WEB_REMIX", "clientVersion": client_version(), "hl": "en", "gl": "US"},
-            "user": {}
-        });
+        let web = self.web_config();
+        let (hl, gl) = locale();
+        let mut client = json!({"clientName": "WEB_REMIX", "clientVersion": web.client_version, "hl": hl, "gl": gl});
+        if !web.visitor_data.is_empty() {
+            client["visitorData"] = json!(web.visitor_data);
+        }
+        body["context"] = json!({"client": client, "user": {}});
         let mut req = self
             .agent
             .post(&format!("{API}/{endpoint}?alt=json&prettyPrint=false"))
@@ -184,7 +254,10 @@ impl Client {
             .set("Origin", ORIGIN)
             .set("Referer", &format!("{ORIGIN}/"))
             .set("X-YouTube-Client-Name", "67")
-            .set("X-YouTube-Client-Version", &client_version());
+            .set("X-YouTube-Client-Version", &web.client_version);
+        if !web.visitor_data.is_empty() {
+            req = req.set("X-Goog-Visitor-Id", &web.visitor_data);
+        }
         let mut save = None;
         if let Ok(mut slot) = self.auth.lock() {
             if let Some(auth) = slot.as_mut() {
@@ -222,12 +295,21 @@ impl Client {
         Ok(parse::shelves(&self.browse("FEmusic_home")?))
     }
 
-    pub fn search(&self, query: &str, filter: Option<Filter>) -> Result<Vec<Shelf>> {
+    /// Search; `params` selects a filter from a previous result's
+    /// `filters`.
+    pub fn search(&self, query: &str, params: Option<&str>) -> Result<SearchResults> {
         let mut body = json!({"query": query});
-        if let Some(f) = filter {
-            body["params"] = json!(f.params());
+        if let Some(p) = params {
+            body["params"] = json!(p);
         }
-        Ok(parse::shelves(&self.post("search", body)?))
+        let v = self.post("search", body)?;
+        Ok(SearchResults {
+            shelves: parse::shelves(&v),
+            filters: parse::search_filters(&v)
+                .into_iter()
+                .map(|(label, params)| SearchFilter { label, params })
+                .collect(),
+        })
     }
 
     pub fn suggestions(&self, input: &str) -> Result<Vec<String>> {
@@ -387,7 +469,7 @@ mod tests {
     fn fixture_mode_end_to_end() {
         let c = fixture_client();
         assert_eq!(c.home().unwrap().len(), 4);
-        assert!(!c.search("aurora", Some(Filter::Songs)).unwrap().is_empty());
+        assert!(!c.search("aurora", None).unwrap().shelves.is_empty());
         assert_eq!(c.detail("VLPLchill0001").unwrap().tracks.len(), 8);
         let lib = c.sync_library();
         assert!(lib.errors.is_empty(), "{:?}", lib.errors);
@@ -396,5 +478,69 @@ mod tests {
         assert_eq!(lib.history.len(), 7);
         assert_eq!(lib.account.unwrap().name, "Bhima");
         assert!(c.lyrics("dQw4w9WgXcQ").unwrap().is_some());
+    }
+
+    #[test]
+    fn ytcfg_extraction() {
+        let page = r#"<script>ytcfg.set({"INNERTUBE_API_KEY":"k","INNERTUBE_CLIENT_VERSION":"1.20261018.16.00","VISITOR_DATA":"Cgt%3D"});</script>"#;
+        assert_eq!(ytcfg_value(page, "INNERTUBE_CLIENT_VERSION").as_deref(), Some("1.20261018.16.00"));
+        assert_eq!(ytcfg_value(page, "VISITOR_DATA").as_deref(), Some("Cgt%3D"));
+        assert_eq!(ytcfg_value(page, "MISSING"), None);
+    }
+
+    /// Against the live service, signed out. Run with
+    /// `cargo test real_api -- --ignored --nocapture`.
+    #[test]
+    #[ignore = "needs network access to music.youtube.com"]
+    fn real_api() {
+        let c = Client::new();
+        let web = c.web_config();
+        println!("client {} visitor {}", web.client_version, !web.visitor_data.is_empty());
+        assert!(web.client_version.starts_with("1."));
+
+        let home = c.home().unwrap();
+        println!("home: {:?}", home.iter().map(|s| (&s.title, s.items.len())).collect::<Vec<_>>());
+        assert!(!home.is_empty());
+
+        assert!(!c.suggestions("daft").unwrap().is_empty());
+        let r = c.search("daft punk", None).unwrap();
+        println!("search: {:?}", r.shelves.iter().map(|s| (&s.title, s.items.len())).collect::<Vec<_>>());
+        println!("filters: {:?}", r.filters.iter().map(|f| &f.label).collect::<Vec<_>>());
+        assert!(!r.shelves.is_empty() && !r.filters.is_empty());
+        for f in &r.filters {
+            let fr = c.search("daft punk", Some(&f.params)).unwrap();
+            let n: usize = fr.shelves.iter().map(|s| s.items.len()).sum();
+            println!("  filter {}: {} results", f.label, n);
+            assert!(n > 0, "filter {} returned nothing", f.label);
+        }
+
+        let artist = r
+            .shelves
+            .iter()
+            .flat_map(|s| &s.items)
+            .find_map(|i| match i {
+                Item::Collection(c) if c.kind == model::Kind::Artist => Some(c.id.clone()),
+                _ => None,
+            })
+            .expect("an artist result");
+        let a = c.detail(&artist).unwrap();
+        println!("artist {}: {} • {} tracks, shelves {:?}", a.title, a.subtitle, a.tracks.len(), a.shelves.iter().map(|s| &s.title).collect::<Vec<_>>());
+        assert!(!a.title.is_empty() && !a.shelves.is_empty());
+
+        // A long public playlist: first page plus a continuation.
+        let p = c.detail("VLPLFgquLnL59alCl_2TQvOiD5Vgm1hCaGSI").unwrap();
+        println!("playlist {}: {} tracks, continuation {}", p.title, p.tracks.len(), p.continuation.is_some());
+        assert!(p.tracks.len() >= 50);
+        if let Some(token) = &p.continuation {
+            let (more, _) = c.more_tracks(token).unwrap();
+            println!("  continuation: {} more", more.len());
+            assert!(!more.is_empty());
+        }
+
+        let video = p.tracks[0].video_id.clone().unwrap();
+        let (queue, lyrics) = c.radio(Some(&video), None).unwrap();
+        println!("radio: {} tracks, lyrics tab {}", queue.len(), lyrics.is_some());
+        assert!(queue.len() > 5);
+        println!("lyrics: {:?}", c.lyrics(&video).unwrap().map(|l| l.text.chars().take(40).collect::<String>()));
     }
 }

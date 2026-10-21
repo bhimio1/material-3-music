@@ -5,8 +5,8 @@ use crate::app::App;
 use crate::sys::task::Task;
 use crate::ui::common;
 use crate::ui::tracks::{self, empty, ListOpts};
-use crate::yt::model::{Item, Shelf, Track};
-use crate::yt::Filter;
+use crate::yt::model::{Item, Track};
+use crate::yt::{SearchFilter, SearchResults};
 use egui::{RichText, Ui};
 use egui_material_icons::icons::*;
 use std::time::{Duration, Instant};
@@ -16,8 +16,11 @@ pub struct State {
     pub query: String,
     /// The query the results are for.
     submitted: String,
-    filter: Option<Filter>,
-    results: Task<anyhow::Result<Vec<Shelf>>>,
+    /// The selected filter's `params`; `None` = all results.
+    filter: Option<String>,
+    /// Filters offered for the submitted query (from its unfiltered results).
+    filters: Vec<SearchFilter>,
+    results: Task<anyhow::Result<SearchResults>>,
     suggestions: Task<anyhow::Result<Vec<String>>>,
     edited: Option<Instant>,
     pub focus: bool,
@@ -36,6 +39,9 @@ impl State {
     pub fn submit(&mut self) {
         self.edited = None;
         self.submitted = self.query.trim().to_string();
+        // A new query starts unfiltered, which also fetches its filters.
+        self.filter = None;
+        self.filters.clear();
         // Results are (re)loaded by the page.
         self.results = Task::default();
     }
@@ -60,12 +66,19 @@ pub fn show(ui: &mut Ui, app: &mut App) {
     s.suggestions.poll();
     if !s.submitted.is_empty() {
         let client = v.client.clone();
-        let (q, f) = (s.submitted.clone(), s.filter);
-        s.results.ensure(&v.ctx, move || client.search(&q, f));
+        let (q, f) = (s.submitted.clone(), s.filter.clone());
+        s.results.ensure(&v.ctx, move || client.search(&q, f.as_deref()));
+    }
+    if s.filter.is_none() {
+        if let Some(Ok(r)) = &s.results.value {
+            if s.filters != r.filters {
+                s.filters = r.filters.clone();
+            }
+        }
     }
 
     let mut submit: Option<String> = None;
-    let mut set_filter: Option<Option<Filter>> = None;
+    let mut set_filter: Option<Option<String>> = None;
     scroll(ui, "search", |ui| {
         ui.label(RichText::new("Search").size(28.0).color(p.on_surface));
         ui.add_space(8.0);
@@ -106,17 +119,19 @@ pub fn show(ui: &mut Ui, app: &mut App) {
             if widgets::filter_chip(ui, "All", s.filter.is_none(), None).clicked() {
                 set_filter = Some(None);
             }
-            for f in Filter::ALL {
-                if widgets::filter_chip(ui, f.label(), s.filter == Some(f), None).clicked() {
-                    set_filter = Some(Some(f));
+            for f in &s.filters {
+                let on = s.filter.as_deref() == Some(f.params.as_str());
+                if widgets::filter_chip(ui, &f.label, on, None).clicked() {
+                    set_filter = Some(Some(f.params.clone()));
                 }
             }
         });
         match &s.results.value {
             None => common::loading(ui, &format!("Searching for “{}”…", s.submitted)),
             Some(Err(e)) => common::banner(ui, ICON_CLOUD_OFF, &format!("Search failed. {e}"), true, |_| {}),
-            Some(Ok(shelves)) if shelves.is_empty() => empty(ui, ICON_SEARCH_OFF, "No results", "Try different words."),
-            Some(Ok(shelves)) => {
+            Some(Ok(r)) if r.shelves.is_empty() => empty(ui, ICON_SEARCH_OFF, "No results", "Try different words."),
+            Some(Ok(r)) => {
+                let shelves = &r.shelves;
                 for (i, shelf) in shelves.iter().enumerate() {
                     let songs: Vec<Track> = shelf
                         .items
