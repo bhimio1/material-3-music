@@ -3,7 +3,6 @@
 A YouTube Music client and local music player for Linux, built with [egui](https://github.com/emilk/egui) and themed with Material You. It looks and behaves like the [Material 3 File Manager](https://github.com/bhimio1/material-3-file-manager-rust) and [Material 3 Settings](https://github.com/bhimio1/material-3-settings), and on an end-4 / end4-pC desktop it takes its colors from your wallpaper.
 
 ![Home](docs/screenshot-home.png)
-![Artist](docs/screenshot-artist.png)
 ![Playlist](docs/screenshot-playlist.png)
 ![Now playing](docs/screenshot-now-playing.png)
 ![Colors from the album art](docs/screenshot-album-colors.png)
