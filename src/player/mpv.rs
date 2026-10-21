@@ -19,6 +19,9 @@ pub struct State {
     pub idle: bool,
     /// Buffering / opening a stream.
     pub loading: bool,
+    /// The last error mpv logged (e.g. yt-dlp's reason a stream won't
+    /// open), since `end-file` only says "loading failed".
+    pub last_error: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -104,6 +107,7 @@ impl Mpv {
         for (i, prop) in OBSERVED.iter().enumerate() {
             mpv.command(json!(["observe_property", i + 1, prop]))?;
         }
+        mpv.command(json!(["request_log_messages", "error"]))?;
         Ok(mpv)
     }
 
@@ -120,6 +124,7 @@ impl Mpv {
             s.loading = true;
             s.time_pos = 0.0;
             s.duration = 0.0;
+            s.last_error = None;
         }
         self.command(json!(["loadfile", target, "replace"]))?;
         self.set_pause(false)
@@ -197,11 +202,29 @@ pub fn apply(msg: &Value, state: &Mutex<State>) -> Option<Event> {
             }
             None
         }
+        "log-message" => {
+            let text = msg.get("text").and_then(Value::as_str)?.trim();
+            // yt-dlp's own message is the useful one; mpv follows it with
+            // generic lines like "youtube-dl failed: …".
+            let text = text.strip_prefix("ERROR: ").unwrap_or(text);
+            let mut s = state.lock().ok()?;
+            let from_ytdlp = text.starts_with('[');
+            if from_ytdlp || s.last_error.is_none() {
+                s.last_error = Some(text.to_string());
+            }
+            None
+        }
         "file-loaded" => Some(Event::FileLoaded),
-        "end-file" => Some(Event::EndFile {
-            reason: msg.get("reason").and_then(Value::as_str).unwrap_or("").to_string(),
-            error: msg.get("file_error").and_then(Value::as_str).map(str::to_string),
-        }),
+        "end-file" => {
+            let reason = msg.get("reason").and_then(Value::as_str).unwrap_or("").to_string();
+            let file_error = msg.get("file_error").and_then(Value::as_str).map(str::to_string);
+            let logged = state.lock().ok().and_then(|mut s| s.last_error.take());
+            let error = match (reason.as_str(), file_error.as_deref()) {
+                ("error", Some("loading failed") | None) => logged.or(file_error),
+                _ => file_error,
+            };
+            Some(Event::EndFile { reason, error })
+        }
         _ => None,
     }
 }
@@ -225,5 +248,29 @@ mod tests {
             Some(Event::EndFile { reason: "error".into(), error: Some("loading failed".into()) })
         );
         assert_eq!(apply(&msg(r#"{"request_id":0,"error":"success"}"#), &state), None);
+    }
+
+    #[test]
+    fn ytdlp_errors_explain_failed_loads() {
+        let state = Mutex::new(State::default());
+        let msg = |s: &str| serde_json::from_str::<Value>(s).unwrap();
+        // What mpv 0.37 logs when YouTube bot-checks yt-dlp.
+        for line in [
+            r#"{"event":"log-message","prefix":"ytdl_hook","level":"error","text":"ERROR: [youtube] FGBhQbmPwH8: Sign in to confirm you’re not a bot. Use --cookies-from-browser or --cookies for the authentication.\n"}"#,
+            r#"{"event":"log-message","prefix":"ytdl_hook","level":"error","text":"youtube-dl failed: unexpected error occurred\n"}"#,
+        ] {
+            apply(&msg(line), &state);
+        }
+        let Some(Event::EndFile { error: Some(e), .. }) =
+            apply(&msg(r#"{"event":"end-file","reason":"error","file_error":"loading failed"}"#), &state)
+        else {
+            panic!()
+        };
+        assert!(e.starts_with("[youtube] FGBhQbmPwH8: Sign in to confirm"), "{e}");
+        // Used up: the next failure doesn't reuse it.
+        assert_eq!(
+            apply(&msg(r#"{"event":"end-file","reason":"error","file_error":"loading failed"}"#), &state),
+            Some(Event::EndFile { reason: "error".into(), error: Some("loading failed".into()) })
+        );
     }
 }

@@ -370,7 +370,7 @@ impl Downloads {
                         .or(lines.last())
                         .cloned()
                         .unwrap_or_else(|| "yt-dlp failed".into());
-                    Err(msg.trim_start_matches("ERROR: ").to_string())
+                    Err(crate::player::explain_error(msg.trim_start_matches("ERROR: ")))
                 }
             };
             let _ = tx.send(Update::Exit(result));

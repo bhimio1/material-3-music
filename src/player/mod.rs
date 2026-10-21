@@ -410,7 +410,7 @@ impl Player {
                             let title = self.current().map(|t| t.title.clone()).unwrap_or_default();
                             self.notices.push(Notice::Error(format!(
                                 "Couldn't play “{title}”: {}",
-                                error.unwrap_or_else(|| "unknown error".into())
+                                explain_error(&error.unwrap_or_else(|| "unknown error".into()))
                             )));
                             // A broken audio device fails every song: don't skip through the queue.
                             let systemic = reason_is_systemic(self.notices.last());
@@ -468,12 +468,32 @@ impl Player {
 }
 
 fn reason_is_systemic(notice: Option<&Notice>) -> bool {
-    matches!(notice, Some(Notice::Error(e)) if e.contains("audio output") || e.contains("audio device"))
+    matches!(notice, Some(Notice::Error(e)) if e.contains("audio output") || e.contains("audio device") || e.contains(BOT_CHECK))
+}
+
+const BOT_CHECK: &str = "YouTube wants to confirm you're not a bot";
+
+/// Turns yt-dlp's errors into something actionable. YouTube's bot check
+/// applies to every song, so it's also treated as systemic.
+pub fn explain_error(e: &str) -> String {
+    if e.contains("not a bot") {
+        format!("{BOT_CHECK}. Sign in with your browser session in Settings → Account, so playback and downloads use your cookies.")
+    } else {
+        e.to_string()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bot_checks_stop_the_queue() {
+        let e = explain_error("[youtube] FGBhQbmPwH8: Sign in to confirm you’re not a bot. Use --cookies-from-browser");
+        assert!(e.contains("Settings → Account"));
+        assert!(reason_is_systemic(Some(&Notice::Error(format!("Couldn't play “x”: {e}")))));
+        assert!(!reason_is_systemic(Some(&Notice::Error("Couldn't play “x”: Video unavailable".into()))));
+    }
 
     fn t(n: &str) -> Track {
         Track {
