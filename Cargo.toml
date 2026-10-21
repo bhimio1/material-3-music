@@ -15,7 +15,7 @@ egui = "0.37"
 egui_material_icons = { version = "0.9", features = ["filled", "outline"] }
 material-colors = "0.4"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif", "bmp"] }
-ureq = { version = "2.12", features = ["json"] }
+ureq = { version = "2.12", features = ["json", "native-certs"] }
 zbus = "4"
 lofty = "0.22"
 sha1 = "0.10"

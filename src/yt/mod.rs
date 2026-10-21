@@ -99,6 +99,7 @@ impl Client {
                 .timeout_connect(Duration::from_secs(10))
                 .timeout(Duration::from_secs(30))
                 .user_agent(USER_AGENT)
+                .try_proxy_from_env(true)
                 .build(),
             auth: Arc::new(Mutex::new(Auth::load())),
             fixtures: std::env::var_os("M3_MUSIC_FIXTURES").map(PathBuf::from),
