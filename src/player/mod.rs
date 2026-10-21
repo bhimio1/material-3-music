@@ -4,7 +4,7 @@ pub mod mpris;
 pub mod mpv;
 
 use crate::downloads::SharedIndex;
-use crate::sys::task::Task;
+use material_3_ui::sys::task::Task;
 use crate::yt::model::Track;
 use crate::yt::Client;
 use std::path::PathBuf;

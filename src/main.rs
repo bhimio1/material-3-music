@@ -7,8 +7,6 @@ mod downloads;
 mod library;
 mod local;
 mod player;
-mod sys;
-mod theme;
 mod thumbs;
 mod ui;
 mod yt;

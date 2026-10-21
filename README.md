@@ -42,9 +42,9 @@ A YouTube Music client and local music player for Linux, built with [egui](https
   - <kbd>Alt</kbd>+<kbd>←</kbd> or the mouse back button: back
 
 **Appearance**
-- **Desktop** colors: the end-4 / end4-pC shell's generated `colors.json`, live-reloaded when the wallpaper changes.
-- **Album art**: the palette follows the cover of the song that's playing.
+- **Auto**: the end-4 / end4-pC shell's generated `colors.json` (or the Material 3 File Manager's `theme.json`), live-reloaded when the wallpaper changes.
 - **Seed**: a color you pick. Plus light/dark/system, filled or outlined icons, and interface scale.
+- **Colors from album art**: while a song plays, the palette follows its cover.
 
 ## Signing in
 
@@ -107,7 +107,7 @@ Settings are edited in the app and stored in `~/.config/m3-music/config.toml`:
 - sync interval;
 - autoplay;
 - extra mpv options (`mpv_args`, e.g. `["--af=loudnorm"]`);
-- theme.
+- theme (`[appearance]`, the same settings as the other Material 3 apps, plus `album_art_colors`). Older top-level `theme_source`, `color_scheme`, … settings are read and carried over.
 
 Data lives in these places:
 - `~/.local/share/m3-music`: account, synced library, download index.
@@ -125,10 +125,11 @@ src/
   local.rs        local library scan (lofty) and file watching
   downloads.rs    yt-dlp download queue and offline index
   thumbs.rs       cover art loading, disk cache, texture LRU, seed colors
-  theme/          M3 palette → egui style (shared with the other apps)
   ui/             sidebar, now-playing bar, track lists and cards, pages
 fixtures/         trimmed InnerTube responses used by the tests
 ```
+
+The palette, egui style, fonts, widgets, page scaffolding, toasts and system helpers come from the shared [material-3-ui](https://github.com/bhimio1/material-3-ui) crate.
 
 Run the tests with `cargo test`.
 
@@ -138,4 +139,4 @@ For development without a network, `M3_MUSIC_FIXTURES=fixtures` answers API requ
 
 MIT, see [LICENSE](LICENSE).
 
-Fonts: Inter (SIL OFL 1.1, see `assets/fonts/LICENSE-Inter.txt`). Icons: Material Symbols, via `egui_material_icons`.
+Fonts: Inter (SIL OFL 1.1, see `assets/fonts/LICENSE-Inter.txt`). Icons: Material Symbols, via `egui_material_icons` (both bundled through material-3-ui).

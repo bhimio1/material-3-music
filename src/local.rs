@@ -1,7 +1,7 @@
 //! Music files on disk: scanning library folders (tags and cover art via
 //! lofty), caching the results, and rescanning when files change.
 
-use crate::sys::task::Task;
+use material_3_ui::sys::task::Task;
 use crate::yt::model::{Link, Track};
 use lofty::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -29,7 +29,7 @@ struct Cached {
 
 fn cache_dir() -> PathBuf {
     dirs::cache_dir()
-        .unwrap_or_else(|| crate::sys::paths::home().join(".cache"))
+        .unwrap_or_else(|| material_3_ui::sys::paths::home().join(".cache"))
         .join("m3-music")
 }
 

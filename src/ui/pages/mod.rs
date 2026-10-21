@@ -9,7 +9,7 @@ pub mod nowplaying;
 pub mod search;
 pub mod settings;
 
-use super::{widgets, Page};
+use super::Page;
 use crate::app::App;
 use egui::{Frame, Margin, Ui};
 use std::collections::HashMap;

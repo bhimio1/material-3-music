@@ -1,25 +1,15 @@
 //! Downloads: active jobs with progress, and songs saved for offline use.
 
-use super::{scroll, widgets};
+use super::scroll;
+use material_3_ui::widgets;
 use crate::app::App;
 use crate::downloads::Status;
-use crate::ui::common;
+use material_3_ui::common;
 use crate::ui::tracks::{self, empty, ListOpts};
 use crate::ui::{art, Action};
 use crate::yt::model::Track;
 use egui::{vec2, CornerRadius, Frame, Margin, RichText, Ui};
-use egui_material_icons::icons::*;
-
-fn human_size(bytes: u64) -> String {
-    let b = bytes as f64;
-    if b >= 1e9 {
-        format!("{:.1} GB", b / 1e9)
-    } else if b >= 1e6 {
-        format!("{:.0} MB", b / 1e6)
-    } else {
-        format!("{:.0} kB", b / 1e3)
-    }
-}
+use material_3_ui::icons::icons::*;
 
 pub fn show(ui: &mut Ui, app: &mut App) {
     let p = app.palette.clone();
@@ -54,8 +44,8 @@ pub fn show(ui: &mut Ui, app: &mut App) {
                 }
             });
         });
-        ui.label(RichText::new(format!("{} songs • {} • saved to {}", saved.len(), human_size(total), crate::sys::paths::tilde(&root))).color(p.on_surface_variant));
-        common::require(ui, v.actions, "yt-dlp", "yt-dlp", "Downloads use yt-dlp.");
+        ui.label(RichText::new(format!("{} songs • {} • saved to {}", saved.len(), material_3_ui::format::file_size(total), material_3_ui::sys::paths::tilde(&root))).color(p.on_surface_variant));
+        crate::ui::require(ui, v.actions, "yt-dlp", "yt-dlp", "Downloads use yt-dlp.");
         let active: Vec<_> = jobs.iter().filter(|j| !matches!(j.2, Status::Done(_))).collect();
         if !active.is_empty() {
             common::card(ui, "In progress", |ui| {

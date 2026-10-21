@@ -1,14 +1,14 @@
 //! The expanded player: big cover art, the queue, and lyrics.
 
-use super::widgets;
+use material_3_ui::widgets;
 use crate::app::App;
-use crate::sys::task::Task;
-use crate::ui::common;
+use material_3_ui::sys::task::Task;
+use material_3_ui::common;
 use crate::ui::tracks::{empty, track_menu, ListOpts};
 use crate::ui::{art, Action};
 use crate::yt::model::{format_duration, Lyrics};
 use egui::{pos2, vec2, Align2, Color32, CornerRadius, FontId, Id, Rect, RichText, Sense, Ui, UiBuilder};
-use egui_material_icons::icons::*;
+use material_3_ui::icons::icons::*;
 use std::collections::HashMap;
 
 #[derive(Default)]
